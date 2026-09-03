@@ -118,8 +118,11 @@ def analyze_style(user_bytes, product, product_image_url):
             {"role": "user", "content": content},
         ],
         temperature=0.3,
-        max_tokens=1600,
+        max_tokens=2048,
         response_format={"type": "json_object"},
+        # Groq rejects JSON mode unless reasoning is parsed or hidden.
+        reasoning_effort="none",
+        reasoning_format="hidden",
     )
     raw = response.choices[0].message.content
     parsed = validate_analysis(extract_json(raw))

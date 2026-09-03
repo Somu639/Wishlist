@@ -137,8 +137,11 @@ async function analyzeStyle({ userImageBase64, userImageMimeType, productImageUr
         { role: 'user', content },
       ],
       temperature: 0.3,
-      max_tokens: 1600,
+      max_tokens: 2048,
       response_format: { type: 'json_object' },
+      // Groq rejects JSON mode unless reasoning is parsed or hidden.
+      reasoning_effort: 'none',
+      reasoning_format: 'hidden',
     });
 
     rawContent = response.choices?.[0]?.message?.content;

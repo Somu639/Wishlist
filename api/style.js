@@ -140,8 +140,12 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         model,
         temperature: 0.3,
-        max_tokens: 1600,
+        max_tokens: 2048,
         response_format: { type: 'json_object' },
+        // Groq rejects JSON mode unless reasoning is parsed or hidden, and this
+        // task needs no chain of thought.
+        reasoning_effort: 'none',
+        reasoning_format: 'hidden',
         messages: [
           { role: 'system', content: buildSystemPrompt() },
           {
@@ -168,10 +172,37 @@ module.exports = async (req, res) => {
       console.error('[Groq] HTTP', groqResponse.status, detail.slice(0, 400));
 
       let upstreamCode = '';
+      let failedGeneration = '';
       try {
-        upstreamCode = JSON.parse(detail)?.error?.code || JSON.parse(detail)?.error?.type || '';
+        const parsed = JSON.parse(detail);
+        upstreamCode = parsed?.error?.code || parsed?.error?.type || '';
+        failedGeneration = parsed?.error?.failed_generation || '';
       } catch {
         upstreamCode = '';
+      }
+
+      // JSON mode can still reject an otherwise usable object; salvage it.
+      if (failedGeneration) {
+        try {
+          const salvaged = validate(extractJson(failedGeneration));
+          return res.status(200).json({
+            success: true,
+            product: {
+              product_id: product.product_id,
+              product_name: product.product_name,
+              brand: product.brand,
+              price: product.price,
+              image_url: product.image_url,
+            },
+            experience_mode: 'ai_style_recommendation',
+            experience_label: 'AI Style Recommendation',
+            try_on: { processing_status: 'not_requested', generated_tryon_image: null },
+            analysis: salvaged,
+            latency_ms: Date.now() - startedAt,
+          });
+        } catch {
+          // Fall through to the error responses below.
+        }
       }
 
       if (groqResponse.status === 401 || groqResponse.status === 403) {
