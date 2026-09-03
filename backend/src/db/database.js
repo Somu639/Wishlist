@@ -2,12 +2,11 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
-const dataDir = path.join(__dirname, '../../data');
+const DB_PATH = process.env.SQLITE_PATH || path.join(__dirname, '../../data/wishlist.db');
+const dataDir = path.dirname(DB_PATH);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
-
-const DB_PATH = path.join(dataDir, 'wishlist.db');
 const db = new DatabaseSync(DB_PATH);
 
 db.exec('PRAGMA journal_mode = WAL');

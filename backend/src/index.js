@@ -24,16 +24,32 @@ app.use(helmet({
 }));
 
 // --- CORS ---
+const extraOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
+  ...extraOrigins,
 ];
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    const host = new URL(origin).hostname;
+    return host.endsWith('.vercel.app') || host === 'vercel.app';
+  } catch {
+    return false;
+  }
+}
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (curl, Postman, server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
       callback(new Error(`CORS: Origin ${origin} not allowed`));
@@ -78,8 +94,8 @@ app.use(errorHandler);
 // --- Start ---
 initializeDatabase();
 
-app.listen(PORT, () => {
-  console.log(`\n🚀 Myntra AI Wishlist Backend running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 Myntra AI Wishlist Backend running on http://0.0.0.0:${PORT}`);
   console.log(`   Health: http://localhost:${PORT}/health`);
   console.log(`   Wishlist: http://localhost:${PORT}/api/wishlist`);
   console.log(`   Analyze: POST http://localhost:${PORT}/api/analyze-style`);
