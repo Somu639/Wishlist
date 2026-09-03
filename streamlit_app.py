@@ -57,7 +57,7 @@ else:
     cols = st.columns(4)
     for index, item in enumerate(classified):
         with cols[index % 4]:
-            st.image(item["image_url"], use_container_width=True)
+            st.image(item["image_url"], width="stretch")
             st.markdown(f"**{item['product_name']}**")
             st.caption(f"{item['brand']} · {item['category']}")
             st.write(rupees(item["price"]))
@@ -77,7 +77,7 @@ st.markdown("### AI Style Preview")
 if product:
     left, right = st.columns([1, 1])
     with left:
-        st.image(product["image_url"], caption=product["product_name"], use_container_width=True)
+        st.image(product["image_url"], caption=product["product_name"], width="stretch")
         st.write(f"{product['color']} · {product['material']}")
         st.write(f"Sizes: {', '.join(product['available_sizes'])}")
     with right:

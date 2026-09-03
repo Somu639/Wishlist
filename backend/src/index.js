@@ -1,9 +1,11 @@
-require('dotenv').config();
+const path = require('path');
+
+// Resolve .env from the backend package, not from the launch directory.
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const path = require('path');
 
 const { initializeDatabase } = require('./db/database');
 const { generalLimiter } = require('./middleware/rateLimiter');

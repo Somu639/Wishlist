@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 CLASSIFICATIONS = {
     "ready_to_buy": "Ready to Buy",
@@ -27,7 +27,7 @@ def _tags(item):
 
 
 def classify_wishlist(items):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     classified = []
     for item in items:
         tags = _tags(item)
