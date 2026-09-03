@@ -102,10 +102,13 @@ Streamlit Community Cloud runs **Python Streamlit apps only**. It cannot host th
 
 ### Vercel (frontend)
 
-1. Open [vercel.com/new](https://vercel.com/new) and import `Somu639/Wishlist`.
-2. Set **Root Directory** to `frontend`.
-3. Framework: Vite. Build: `npm run build`. Output: `dist`.
-4. After the Express API is live, add env `VITE_API_URL` = `https://<api-host>/api` and redeploy.
+Import the GitHub repo with **Root Directory left as `.`** (repo root). A root `package.json` + `vercel.json` force a Vite build of `frontend/` so Vercel does not treat this as a Python app.
+
+If you already created the project as Python, in Vercel go to **Settings → General → Framework Preset** and set it to **Vite**, then **Redeploy**.
+
+Optional: set Root Directory to `frontend` instead — that also works.
+
+After the Express API is live, add env `VITE_API_URL` = `https://<api-host>/api` and redeploy.
 
 Or from a machine already logged in to Vercel:
 
@@ -118,7 +121,7 @@ npx vercel --prod --yes
 ### Streamlit Community Cloud (Python backend)
 
 1. Open [share.streamlit.io](https://share.streamlit.io/) and sign in with GitHub.
-2. Deploy `Somu639/Wishlist`, main file `streamlit_app.py`.
+2. Deploy `Somu639/Wishlist`, main file `streamlit_app.py`. If prompted for a requirements file, use `streamlit_backend/requirements.txt`.
 3. In **Secrets**, add:
 
 ```toml
@@ -129,7 +132,7 @@ GROQ_VISION_MODEL = "qwen/qwen3.6-27b"
 Local:
 
 ```powershell
-pip install -r requirements.txt
+pip install -r streamlit_backend/requirements.txt
 streamlit run streamlit_app.py
 ```
 

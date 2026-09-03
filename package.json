@@ -1,0 +1,9 @@
+{
+  "name": "styleai-wishlist",
+  "private": true,
+  "description": "Vercel builds the Vite frontend in frontend/. Python files are for Streamlit Cloud only.",
+  "scripts": {
+    "build": "npm run build --prefix frontend",
+    "dev": "npm run dev --prefix frontend"
+  }
+}
