@@ -124,6 +124,7 @@ module.exports = async (req, res) => {
     return res.status(404).json({ error: 'Product not found', code: 'NOT_FOUND' });
   }
 
+  const model = process.env.GROQ_VISION_MODEL || 'qwen/qwen3.6-27b';
   const startedAt = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 45000);
@@ -137,7 +138,7 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: process.env.GROQ_VISION_MODEL || 'qwen/qwen3.6-27b',
+        model,
         temperature: 0.3,
         max_tokens: 1600,
         response_format: { type: 'json_object' },
@@ -165,11 +166,50 @@ module.exports = async (req, res) => {
     if (!groqResponse.ok) {
       const detail = await groqResponse.text();
       console.error('[Groq] HTTP', groqResponse.status, detail.slice(0, 400));
-      return res.status(502).json({ error: 'AI service error. Please try again.', code: 'GROQ_API_ERROR' });
+
+      let upstreamCode = '';
+      try {
+        upstreamCode = JSON.parse(detail)?.error?.code || JSON.parse(detail)?.error?.type || '';
+      } catch {
+        upstreamCode = '';
+      }
+
+      if (groqResponse.status === 401 || groqResponse.status === 403) {
+        return res.status(502).json({
+          error: 'Groq rejected the API key. Check GROQ_API_KEY in the Vercel environment variables.',
+          code: 'GROQ_AUTH_FAILED',
+        });
+      }
+
+      if (groqResponse.status === 404 || upstreamCode === 'model_not_found' || upstreamCode === 'model_decommissioned') {
+        return res.status(502).json({
+          error: `Vision model "${model}" is not available on this Groq account. Set GROQ_VISION_MODEL to a supported vision model.`,
+          code: 'GROQ_MODEL_UNAVAILABLE',
+        });
+      }
+
+      return res.status(502).json({
+        error: 'AI service error. Please try again.',
+        code: 'GROQ_API_ERROR',
+        upstream_status: groqResponse.status,
+        upstream_code: upstreamCode || undefined,
+      });
     }
 
     const payload = await groqResponse.json();
-    const analysis = validate(extractJson(payload.choices?.[0]?.message?.content));
+    const rawContent = payload.choices?.[0]?.message?.content;
+
+    let analysis;
+    try {
+      analysis = validate(extractJson(rawContent));
+    } catch (parseError) {
+      console.error('[Groq] unusable content:', parseError.message, String(rawContent).slice(0, 400));
+      return res.status(502).json({
+        error: 'The AI returned an unexpected response. Please try again.',
+        code: 'AI_INVALID_RESPONSE',
+        detail: parseError.message,
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -191,7 +231,11 @@ module.exports = async (req, res) => {
       return res.status(504).json({ error: 'AI request timed out. Please try again.', code: 'GROQ_TIMEOUT' });
     }
     console.error('[Groq] ', err.message);
-    return res.status(502).json({ error: 'AI service error. Please try again.', code: 'GROQ_API_ERROR' });
+    return res.status(502).json({
+      error: 'AI service error. Please try again.',
+      code: 'GROQ_API_ERROR',
+      detail: err.message,
+    });
   } finally {
     clearTimeout(timer);
   }
