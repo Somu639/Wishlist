@@ -92,14 +92,10 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
     setError(null)
     setLoadingMessage(LOADING_MESSAGES[0])
 
-    const formData = new FormData()
-    formData.append('userPhoto', photo.file)
-    formData.append('product_id', product.product_id)
-
     try {
       trackEvent('photo_uploaded', { product_id: product.product_id, product_category: product.category })
       trackEvent('try_on_started', { product_id: product.product_id, product_category: product.category })
-      const data = await analyzeStyle(formData)
+      const data = await analyzeStyle({ file: photo.file, productId: product.product_id })
       setAnalysisResult(data.analysis)
       setReconsider(data.reconsider || null)
       setTryOn(data.try_on || null)

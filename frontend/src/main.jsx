@@ -12,12 +12,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       toastOptions={{
         duration: 3000,
         style: {
-          borderRadius: '12px',
+          borderRadius: '4px',
           fontFamily: 'Inter, sans-serif',
-          fontSize: '14px',
+          fontSize: '13px',
+          color: '#282c3f',
         },
         success: {
-          iconTheme: { primary: '#ec4899', secondary: '#fff' },
+          iconTheme: { primary: '#ff3f6c', secondary: '#fff' },
         },
       }}
     />

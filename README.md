@@ -100,15 +100,18 @@ Streamlit Community Cloud runs **Python Streamlit apps only**. It cannot host th
 2. **Python backend → Streamlit Community Cloud** (`streamlit_app.py`): same catalog, intelligence strip, Groq AI Style Preview, and bag — using Streamlit secrets for `GROQ_API_KEY`.
 3. **Express API** (needed if the Vercel React app should call `/api`): host `backend/` on a Node platform such as [Render](https://render.com) (`render.yaml`). Then set Vercel env `VITE_API_URL` to `https://your-api.onrender.com/api` and Render `FRONTEND_URL` to the Vercel origin.
 
-### Vercel (frontend)
+### Vercel (frontend + AI endpoint)
 
 Import the GitHub repo with **Root Directory left as `.`** (repo root). A root `package.json` + `vercel.json` force a Vite build of `frontend/` so Vercel does not treat this as a Python app.
 
-If you already created the project as Python, in Vercel go to **Settings → General → Framework Preset** and set it to **Vite**, then **Redeploy**.
+If you already created the project as Python, in Vercel go to **Settings → General → Framework Preset**, set it to **Vite**, then **Redeploy**.
 
-Optional: set Root Directory to `frontend` instead — that also works.
+The Vercel deployment is self-contained:
 
-After the Express API is live, add env `VITE_API_URL` = `https://<api-host>/api` and redeploy.
+- Wishlist and bag run on browser `localStorage`, seeded from `frontend/src/data/catalog.js`, so the storefront is never empty without a backend.
+- AI Style Preview posts the resized photo to the `api/style.js` serverless function, which calls Groq directly. Add `GROQ_API_KEY` (and optionally `GROQ_VISION_MODEL`) in **Settings → Environment Variables**. Without it the modal reports that AI Style is not configured.
+
+To use the Express API instead, set `VITE_API_URL` = `https://<api-host>/api`; the frontend then prefers it and falls back to local data if it is unreachable.
 
 Or from a machine already logged in to Vercel:
 
@@ -140,7 +143,9 @@ streamlit run streamlit_app.py
 
 ```
 backend/src/            Express API, Groq service, SQLite
-frontend/src/           Wishlist, Style Preview, Cart
+frontend/src/           Storefront, Wishlist, Style Preview, Bag
+frontend/src/data/      Catalog + localStorage fallback store
+api/style.js            Vercel serverless Groq analysis endpoint
 streamlit_app.py        Streamlit Community Cloud backend UI
 streamlit_backend/      Catalog, Groq, intelligence for Streamlit
 ```

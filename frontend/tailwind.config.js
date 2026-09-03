@@ -8,31 +8,34 @@ export default {
     extend: {
       colors: {
         brand: {
-          50:  '#fdf2f8',
-          100: '#fce7f3',
-          200: '#fbcfe8',
-          300: '#f9a8d4',
-          400: '#f472b6',
-          500: '#ec4899',   // primary pink/magenta
-          600: '#db2777',   // dark pink
-          700: '#be185d',
-          800: '#9d174d',
-          900: '#831843',
+          50:  '#fff5f7',
+          100: '#ffe8ee',
+          200: '#ffc9d7',
+          300: '#ff9db6',
+          400: '#ff6d92',
+          500: '#ff3f6c',   // primary action pink
+          600: '#e63a62',
+          700: '#c22f52',
+          800: '#9c2642',
+          900: '#7a1e34',
         },
-        surface: {
-          DEFAULT: '#ffffff',
-          muted:   '#fafafa',
-          card:    '#ffffff',
-        },
+        ink: '#282c3f',        // primary text
+        muted: '#7e818c',      // secondary text
+        line: '#eaeaec',       // borders
+        shell: '#f5f5f6',      // page / input background
+        deal: '#ff905a',       // discount text
+        ok: '#03a685',         // success / in stock
+        rating: '#14958f',     // rating pill
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        sans: ['Inter', 'Assistant', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        card:   '0 1px 4px 0 rgba(0,0,0,0.06), 0 4px 16px 0 rgba(0,0,0,0.06)',
-        'card-hover': '0 4px 20px 0 rgba(0,0,0,0.12)',
-        'pink': '0 4px 14px 0 rgba(236,72,153,0.25)',
+        card:   '0 1px 4px 0 rgba(40,44,63,0.08)',
+        'card-hover': '0 4px 14px 0 rgba(40,44,63,0.16)',
+        header: '0 2px 6px 0 rgba(40,44,63,0.10)',
+        pink: '0 4px 14px 0 rgba(255,63,108,0.25)',
       },
       borderRadius: {
         '2xl': '1rem',

@@ -5,13 +5,19 @@ import ProductCard from '../components/ProductCard.jsx'
 import WishlistIntelligence from '../components/WishlistIntelligence.jsx'
 import StylePreviewModal from './StylePreviewPage.jsx'
 import {
-  fetchWishlist,
+  addToCart,
   fetchCart,
+  fetchWishlist,
   removeFromWishlist,
   trackEvent,
 } from '../api/client.js'
 
-export default function WishlistPage({ searchQuery = '', onCartUpdated, onWishlistCount }) {
+export default function WishlistPage({
+  searchQuery = '',
+  onCartUpdated,
+  onWishlistCount,
+  onContinueShopping,
+}) {
   const [products, setProducts] = useState([])
   const [intelligence, setIntelligence] = useState(null)
   const [filter, setFilter] = useState(null)
@@ -31,7 +37,7 @@ export default function WishlistPage({ searchQuery = '', onCartUpdated, onWishli
       onWishlistCount?.(items.length)
       trackEvent('wishlist_view')
       const cartData = await fetchCart()
-      onCartUpdated(cartData.count || 0)
+      onCartUpdated?.(cartData.count || 0)
     } catch (err) {
       setError(err.userMessage || 'Could not load your wishlist. Please try again.')
     } finally {
@@ -39,17 +45,28 @@ export default function WishlistPage({ searchQuery = '', onCartUpdated, onWishli
     }
   }, [onCartUpdated, onWishlistCount])
 
-  useEffect(() => {
-    loadWishlist()
-  }, [loadWishlist])
+  useEffect(() => { loadWishlist() }, [loadWishlist])
 
-  async function handleToggleWishlist(product) {
+  async function handleRemove(product) {
     try {
       await removeFromWishlist(product.product_id)
       toast.success('Removed from wishlist')
       await loadWishlist()
     } catch (err) {
       toast.error(err.userMessage || 'Could not update wishlist.')
+    }
+  }
+
+  async function handleMoveToBag(product) {
+    try {
+      await addToCart({ product_id: product.product_id, source: 'direct' })
+      await removeFromWishlist(product.product_id)
+      const cartData = await fetchCart()
+      onCartUpdated?.(cartData.count || 0)
+      toast.success(`${product.product_name} moved to bag`)
+      await loadWishlist()
+    } catch (err) {
+      toast.error(err.userMessage || 'Could not move this item to your bag.')
     }
   }
 
@@ -62,13 +79,13 @@ export default function WishlistPage({ searchQuery = '', onCartUpdated, onWishli
   }
 
   const visible = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
+    const query = searchQuery.trim().toLowerCase()
     let list = products
     if (filter) list = list.filter((item) => item.classification === filter)
-    if (q) {
+    if (query) {
       list = list.filter((item) => {
-        const hay = `${item.product_name} ${item.brand} ${item.category} ${item.color}`.toLowerCase()
-        return hay.includes(q)
+        const haystack = `${item.product_name} ${item.brand} ${item.category} ${item.color}`.toLowerCase()
+        return haystack.includes(query)
       })
     }
     return list
@@ -77,8 +94,8 @@ export default function WishlistPage({ searchQuery = '', onCartUpdated, onWishli
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="animate-spin text-[#ff3f6c]" size={32} />
-        <p className="text-gray-500 text-sm">Loading your wishlist…</p>
+        <Loader2 className="animate-spin text-brand-500" size={32} />
+        <p className="text-sm text-muted">Loading your wishlist…</p>
       </div>
     )
   }
@@ -86,7 +103,7 @@ export default function WishlistPage({ searchQuery = '', onCartUpdated, onWishli
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4">
-        <p className="text-gray-700 font-medium text-center">{error}</p>
+        <p className="text-center font-medium text-ink">{error}</p>
         <button type="button" onClick={loadWishlist} className="btn-primary">
           <RefreshCw size={16} /> Try Again
         </button>
@@ -95,53 +112,55 @@ export default function WishlistPage({ searchQuery = '', onCartUpdated, onWishli
   }
 
   return (
-    <div className="bg-white min-h-[calc(100vh-4rem)]">
-      <div className="max-w-5xl mx-auto px-4 pt-10 pb-4 text-center">
-        <h1 className="text-[22px] sm:text-[28px] font-bold tracking-[0.18em] uppercase text-gray-900">
-          My Wishlist
-        </h1>
-        <p className="mt-2 text-sm text-gray-500">
-          {products.length} saved {products.length === 1 ? 'item' : 'items'}
-        </p>
-      </div>
+    <div className="max-w-[1280px] mx-auto px-4 py-6 page-enter">
+      <h1 className="text-[17px] font-bold uppercase tracking-[0.02em] text-ink">
+        My Wishlist
+        <span className="ml-2 text-[13px] font-normal normal-case text-muted">
+          {products.length} {products.length === 1 ? 'item' : 'items'}
+        </span>
+      </h1>
 
-      <div className="max-w-5xl mx-auto px-4 pb-12">
-        {products.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <Heart className="text-[#ff3f6c]" size={28} />
-            <h2 className="text-lg font-semibold text-gray-800">Your wishlist is empty</h2>
-          </div>
-        ) : (
-          <>
-            {intelligence && (
-              <div className="mb-8">
-                <WishlistIntelligence
-                  savedCount={intelligence.saved_count ?? products.length}
-                  summary={intelligence.summary}
-                  activeId={filter}
-                  onSelect={setFilter}
+      {products.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 gap-3">
+          <Heart className="text-brand-500" size={28} />
+          <h2 className="text-lg font-semibold text-ink">Your wishlist is empty</h2>
+          <p className="text-sm text-muted">Save the styles you like and come back to decide.</p>
+          <button type="button" onClick={onContinueShopping} className="btn-primary mt-2">
+            Continue Shopping
+          </button>
+        </div>
+      ) : (
+        <>
+          {intelligence && (
+            <div className="mt-5">
+              <WishlistIntelligence
+                savedCount={intelligence.saved_count ?? products.length}
+                summary={intelligence.summary}
+                activeId={filter}
+                onSelect={setFilter}
+              />
+            </div>
+          )}
+
+          {visible.length === 0 ? (
+            <p className="py-16 text-center text-sm text-muted">No items match this view.</p>
+          ) : (
+            <div className="mt-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {visible.map((product) => (
+                <ProductCard
+                  key={product.product_id}
+                  product={product}
+                  variant="wishlist"
+                  wishlisted
+                  onTryAI={handleTryAI}
+                  onToggleWishlist={handleRemove}
+                  onAddToBag={handleMoveToBag}
                 />
-              </div>
-            )}
-
-            {visible.length === 0 ? (
-              <p className="text-center text-sm text-gray-500 py-12">No items match this view.</p>
-            ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-10">
-                {visible.map((product) => (
-                  <ProductCard
-                    key={product.product_id}
-                    product={product}
-                    wishlisted
-                    onTryAI={() => handleTryAI(product)}
-                    onToggleWishlist={handleToggleWishlist}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       {selectedProduct && (
         <StylePreviewModal
