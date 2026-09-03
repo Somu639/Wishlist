@@ -67,6 +67,12 @@ function validate(data) {
   return data;
 }
 
+function stripDataUrl(value) {
+  const text = String(value || '').trim();
+  const match = text.match(/^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/);
+  return match ? match[1] : text;
+}
+
 async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
   if (typeof req.body === 'string') return JSON.parse(req.body);
@@ -76,7 +82,87 @@ async function readBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 }
 
+function successPayload(product, analysis, startedAt) {
+  return {
+    success: true,
+    product: {
+      product_id: product.product_id,
+      product_name: product.product_name,
+      brand: product.brand,
+      price: product.price,
+      image_url: product.image_url,
+    },
+    experience_mode: 'ai_style_recommendation',
+    experience_label: 'AI Style Recommendation',
+    try_on: { processing_status: 'not_requested', generated_tryon_image: null },
+    analysis,
+    latency_ms: Date.now() - startedAt,
+  };
+}
+
+async function callGroq({ apiKey, model, product, userDataUrl, includeProductImage, jsonMode, reasoning, signal }) {
+  const content = [
+    { type: 'text', text: buildUserPrompt(product) },
+    { type: 'image_url', image_url: { url: userDataUrl } },
+  ];
+  if (includeProductImage && product.image_url) {
+    content.push({ type: 'image_url', image_url: { url: product.image_url } });
+  }
+
+  const body = {
+    model,
+    temperature: 0.3,
+    max_tokens: 2048,
+    messages: [
+      { role: 'system', content: buildSystemPrompt() },
+      { role: 'user', content },
+    ],
+  };
+
+  if (jsonMode) body.response_format = { type: 'json_object' };
+  if (reasoning) {
+    body.reasoning_effort = 'none';
+    body.reasoning_format = 'hidden';
+  }
+
+  const groqResponse = await fetch(GROQ_URL, {
+    method: 'POST',
+    signal,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  const detail = await groqResponse.text();
+  let parsed = {};
+  try {
+    parsed = JSON.parse(detail);
+  } catch {
+    parsed = {};
+  }
+
+  return {
+    ok: groqResponse.ok,
+    status: groqResponse.status,
+    parsed,
+    detail,
+    upstreamCode: parsed?.error?.code || parsed?.error?.type || '',
+    failedGeneration: parsed?.error?.failed_generation || '',
+    content: parsed?.choices?.[0]?.message?.content || '',
+  };
+}
+
+function tryParseAnalysis(raw) {
+  return validate(extractJson(raw));
+}
+
 module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
   if (req.method === 'OPTIONS') {
     res.setHeader('Allow', 'POST, OPTIONS');
     return res.status(204).end();
@@ -101,7 +187,9 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Invalid request body', code: 'VALIDATION_ERROR' });
   }
 
-  const { product_id: productId, image_base64: imageBase64, image_mime: imageMime } = body;
+  const productId = body.product_id;
+  const imageBase64 = stripDataUrl(body.image_base64);
+  const imageMime = body.image_mime;
 
   if (!productId || !imageBase64) {
     return res.status(400).json({
@@ -118,7 +206,6 @@ module.exports = async (req, res) => {
   }
 
   const mime = ALLOWED_MIME.has(imageMime) ? imageMime : 'image/jpeg';
-
   const product = getProduct(productId);
   if (!product) {
     return res.status(404).json({ error: 'Product not found', code: 'NOT_FOUND' });
@@ -127,135 +214,73 @@ module.exports = async (req, res) => {
   const model = process.env.GROQ_VISION_MODEL || 'qwen/qwen3.6-27b';
   const startedAt = Date.now();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 45000);
+  const timer = setTimeout(() => controller.abort(), 50000);
+  const userDataUrl = `data:${mime};base64,${imageBase64}`;
+
+  const attempts = [
+    { includeProductImage: true, jsonMode: true, reasoning: true },
+    { includeProductImage: false, jsonMode: true, reasoning: true },
+    { includeProductImage: true, jsonMode: false, reasoning: true },
+    { includeProductImage: false, jsonMode: false, reasoning: false },
+  ];
 
   try {
-    const groqResponse = await fetch(GROQ_URL, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    let last = null;
+
+    for (const attempt of attempts) {
+      const result = await callGroq({
+        apiKey,
         model,
-        temperature: 0.3,
-        max_tokens: 2048,
-        response_format: { type: 'json_object' },
-        // Groq rejects JSON mode unless reasoning is parsed or hidden, and this
-        // task needs no chain of thought.
-        reasoning_effort: 'none',
-        reasoning_format: 'hidden',
-        messages: [
-          { role: 'system', content: buildSystemPrompt() },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: buildUserPrompt(product) },
-              { type: 'image_url', image_url: { url: `data:${mime};base64,${imageBase64}` } },
-              { type: 'image_url', image_url: { url: product.image_url } },
-            ],
-          },
-        ],
-      }),
-    });
-
-    if (groqResponse.status === 429) {
-      return res.status(429).json({
-        error: 'AI rate limit reached. Please wait a moment and try again.',
-        code: 'GROQ_RATE_LIMIT',
+        product,
+        userDataUrl,
+        signal: controller.signal,
+        ...attempt,
       });
-    }
+      last = result;
 
-    if (!groqResponse.ok) {
-      const detail = await groqResponse.text();
-      console.error('[Groq] HTTP', groqResponse.status, detail.slice(0, 400));
-
-      let upstreamCode = '';
-      let failedGeneration = '';
-      try {
-        const parsed = JSON.parse(detail);
-        upstreamCode = parsed?.error?.code || parsed?.error?.type || '';
-        failedGeneration = parsed?.error?.failed_generation || '';
-      } catch {
-        upstreamCode = '';
+      if (result.status === 429) {
+        return res.status(429).json({
+          error: 'Too many shoppers are using AI Style right now. Wait a few seconds and try again.',
+          code: 'GROQ_RATE_LIMIT',
+        });
       }
 
-      // JSON mode can still reject an otherwise usable object; salvage it.
-      if (failedGeneration) {
-        try {
-          const salvaged = validate(extractJson(failedGeneration));
-          return res.status(200).json({
-            success: true,
-            product: {
-              product_id: product.product_id,
-              product_name: product.product_name,
-              brand: product.brand,
-              price: product.price,
-              image_url: product.image_url,
-            },
-            experience_mode: 'ai_style_recommendation',
-            experience_label: 'AI Style Recommendation',
-            try_on: { processing_status: 'not_requested', generated_tryon_image: null },
-            analysis: salvaged,
-            latency_ms: Date.now() - startedAt,
-          });
-        } catch {
-          // Fall through to the error responses below.
-        }
-      }
-
-      if (groqResponse.status === 401 || groqResponse.status === 403) {
+      if (result.status === 401 || result.status === 403) {
         return res.status(502).json({
           error: 'Groq rejected the API key. Check GROQ_API_KEY in the Vercel environment variables.',
           code: 'GROQ_AUTH_FAILED',
         });
       }
 
-      if (groqResponse.status === 404 || upstreamCode === 'model_not_found' || upstreamCode === 'model_decommissioned') {
+      if (result.failedGeneration) {
+        try {
+          return res.status(200).json(successPayload(product, tryParseAnalysis(result.failedGeneration), startedAt));
+        } catch {
+          // Try the next request shape.
+        }
+      }
+
+      if (result.ok && result.content) {
+        try {
+          return res.status(200).json(successPayload(product, tryParseAnalysis(result.content), startedAt));
+        } catch (parseError) {
+          console.error('[Groq] unusable content:', parseError.message);
+        }
+      }
+
+      if (result.status === 404 || result.upstreamCode === 'model_not_found' || result.upstreamCode === 'model_decommissioned') {
         return res.status(502).json({
           error: `Vision model "${model}" is not available on this Groq account. Set GROQ_VISION_MODEL to a supported vision model.`,
           code: 'GROQ_MODEL_UNAVAILABLE',
         });
       }
-
-      return res.status(502).json({
-        error: 'AI service error. Please try again.',
-        code: 'GROQ_API_ERROR',
-        upstream_status: groqResponse.status,
-        upstream_code: upstreamCode || undefined,
-      });
     }
 
-    const payload = await groqResponse.json();
-    const rawContent = payload.choices?.[0]?.message?.content;
-
-    let analysis;
-    try {
-      analysis = validate(extractJson(rawContent));
-    } catch (parseError) {
-      console.error('[Groq] unusable content:', parseError.message, String(rawContent).slice(0, 400));
-      return res.status(502).json({
-        error: 'The AI returned an unexpected response. Please try again.',
-        code: 'AI_INVALID_RESPONSE',
-        detail: parseError.message,
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      product: {
-        product_id: product.product_id,
-        product_name: product.product_name,
-        brand: product.brand,
-        price: product.price,
-        image_url: product.image_url,
-      },
-      experience_mode: 'ai_style_recommendation',
-      experience_label: 'AI Style Recommendation',
-      try_on: { processing_status: 'not_requested', generated_tryon_image: null },
-      analysis,
-      latency_ms: Date.now() - startedAt,
+    return res.status(502).json({
+      error: 'AI Style could not finish this photo. Try a clearer, well-lit full-outfit picture.',
+      code: 'GROQ_API_ERROR',
+      upstream_status: last?.status,
+      upstream_code: last?.upstreamCode || undefined,
     });
   } catch (err) {
     if (err.name === 'AbortError') {
@@ -263,7 +288,7 @@ module.exports = async (req, res) => {
     }
     console.error('[Groq] ', err.message);
     return res.status(502).json({
-      error: 'AI service error. Please try again.',
+      error: 'AI Style is temporarily unavailable. Please try again.',
       code: 'GROQ_API_ERROR',
       detail: err.message,
     });

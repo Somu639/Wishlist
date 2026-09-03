@@ -138,11 +138,12 @@ export const PRODUCTS = [
 ]
 
 export const CATEGORY_GROUPS = [
-  { id: 'all', label: 'Women', categories: null },
-  { id: 'ethnic', label: 'Ethnic', categories: ['Saree', 'Kurti', 'Ethnic Wear'] },
-  { id: 'western', label: 'Western', categories: ['Dress', 'Top', 'Co-ord Set'] },
-  { id: 'denim', label: 'Jeans', categories: ['Jeans'] },
-  { id: 'workwear', label: 'Workwear', categories: ['Blazer', 'Top'] },
+  { id: 'men', label: 'Men', categories: [] },
+  { id: 'women', label: 'Women', categories: null },
+  { id: 'kids', label: 'Kids', categories: [] },
+  { id: 'home', label: 'Home & Living', categories: [] },
+  { id: 'beauty', label: 'Beauty', categories: [] },
+  { id: 'studio', label: 'Studio', categories: [] },
 ]
 
 export function getProduct(productId) {

@@ -34,7 +34,7 @@
   }
 
   .nav-link {
-    @apply relative h-full flex items-center px-3 text-[13px] font-bold tracking-[0.02em] uppercase text-ink hover:text-brand-500 transition-colors;
+    @apply relative h-full flex items-center px-2.5 text-[13px] font-bold tracking-[0.06em] uppercase text-ink hover:text-brand-500 transition-colors whitespace-nowrap;
   }
 
   .nav-link-active::after {

@@ -244,9 +244,9 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
                 type="button"
                 onClick={handleAnalyze}
                 disabled={!photo || loading}
-                className="mt-6 w-full max-w-[280px] h-11 bg-[#ff3f6c] hover:bg-[#e63660] text-white text-[12px] font-bold tracking-[0.04em] disabled:opacity-40"
+                className="mt-6 w-full max-w-[280px] h-11 bg-[#ff3f6c] hover:bg-[#e63660] text-white text-[13px] font-bold tracking-[0.04em] uppercase disabled:opacity-40"
               >
-                Get My AI Recommendation
+                {error ? 'Try AI Style Again' : 'Get My AI Recommendation'}
               </button>
 
               <p className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-gray-500">

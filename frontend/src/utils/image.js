@@ -1,5 +1,5 @@
-const MAX_EDGE = 1024
-const QUALITY = 0.82
+const MAX_EDGE = 768
+const QUALITY = 0.78
 
 /**
  * Serverless request bodies are capped a few MB, so the photo is downscaled in

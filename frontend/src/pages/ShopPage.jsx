@@ -21,7 +21,7 @@ const SORTS = [
 ]
 
 export default function ShopPage({
-  activeGroup = 'all',
+  activeGroup = 'women',
   searchQuery = '',
   onGroupSelect,
   onCartUpdated,
@@ -49,9 +49,9 @@ export default function ShopPage({
 
   const visible = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    let list = group.categories
-      ? PRODUCTS.filter((item) => group.categories.includes(item.category))
-      : [...PRODUCTS]
+    let list = group.categories === null
+      ? [...PRODUCTS]
+      : PRODUCTS.filter((item) => group.categories.includes(item.category))
 
     if (query) {
       list = list.filter((item) => {
@@ -104,17 +104,17 @@ export default function ShopPage({
   }
 
   return (
-    <div className="max-w-[1280px] mx-auto px-4 py-6 page-enter">
-      <p className="text-[12px] text-muted">
+    <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-6 page-enter">
+      <p className="text-[13px] text-muted">
         Home / Clothing /{' '}
         <span className="text-ink font-semibold">{group.label}</span>
       </p>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[17px] font-bold text-ink">
+        <h1 className="text-[16px] font-bold text-ink">
           {group.label} Clothing
           <span className="ml-2 text-[13px] font-normal text-muted">
-            — {visible.length} {visible.length === 1 ? 'item' : 'items'}
+            - {visible.length} {visible.length === 1 ? 'item' : 'items'}
           </span>
         </h1>
 
@@ -157,9 +157,14 @@ export default function ShopPage({
       </div>
 
       {visible.length === 0 ? (
-        <p className="py-20 text-center text-sm text-muted">No products match this search.</p>
+        <div className="py-20 text-center">
+          <p className="text-[16px] font-bold text-ink">Nothing to show in {group.label}</p>
+          <p className="mt-2 text-sm text-muted">
+            {searchQuery ? 'No products match this search.' : 'This aisle is empty in the prototype. Browse Women for the live catalog.'}
+          </p>
+        </div>
       ) : (
-        <div className="mt-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="mt-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8">
           {visible.map((product) => (
             <ProductCard
               key={product.product_id}

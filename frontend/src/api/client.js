@@ -2,12 +2,10 @@ import axios from 'axios'
 import * as local from '../data/localStore.js'
 import { fileToResizedBase64 } from '../utils/image.js'
 
-/**
- * The Express API is optional. When VITE_API_URL is not set (for example on a
- * static Vercel deployment) wishlist and bag run on localStorage, and the AI
- * analysis goes to the /api/style serverless function.
- */
-const remoteBase = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : '')
+const explicitApi = import.meta.env.VITE_API_URL
+const remoteBase = /^https?:\/\//.test(explicitApi || '')
+  ? explicitApi
+  : (import.meta.env.DEV ? '/api' : '')
 
 const api = remoteBase
   ? axios.create({ baseURL: remoteBase, timeout: 60000 })
@@ -20,13 +18,15 @@ function withMessage(error) {
   const status = error.response?.status
   let userMessage = data?.error || 'Something went wrong. Please try again.'
 
-  if (status === 429) userMessage = data?.error || 'Too many requests. Please wait a moment.'
-  else if (status === 504 || error.code === 'ECONNABORTED') userMessage = 'Request timed out. Please try again.'
+  if (status === 429) {
+    userMessage = data?.error || 'Too many shoppers are using AI Style right now. Wait a few seconds and try again.'
+  } else if (status === 504 || error.code === 'ECONNABORTED') {
+    userMessage = 'Request timed out. Please try again.'
+  }
 
   return Object.assign(error, { userMessage })
 }
 
-// A missing API returns the SPA shell or a network error — both mean "use local data".
 function isUnavailable(error, payload) {
   if (typeof payload === 'string') return true
   if (!error) return false
@@ -46,7 +46,6 @@ async function callRemote(request, fallback) {
   }
 }
 
-// Wishlist
 export const fetchWishlist = () =>
   callRemote((a) => a.get('/wishlist'), () => local.getWishlist())
 
@@ -56,7 +55,6 @@ export const addToWishlist = (productId) =>
 export const removeFromWishlist = (productId) =>
   callRemote((a) => a.delete(`/wishlist/${productId}`), () => local.removeFromWishlist(productId))
 
-// Bag
 export const fetchCart = () =>
   callRemote((a) => a.get('/cart'), () => local.getCart())
 
@@ -66,7 +64,18 @@ export const addToCart = (payload) =>
 export const removeFromCart = (cartItemId) =>
   callRemote((a) => a.delete(`/cart/${cartItemId}`), () => local.removeFromCart(cartItemId))
 
-// AI Style Preview
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function postStyle(imageBase64, productId) {
+  return functions.post('/api/style', {
+    product_id: productId,
+    image_base64: imageBase64,
+    image_mime: 'image/jpeg',
+  })
+}
+
 export async function analyzeStyle({ file, productId }) {
   if (api) {
     const formData = new FormData()
@@ -84,19 +93,25 @@ export async function analyzeStyle({ file, productId }) {
   }
 
   const imageBase64 = await fileToResizedBase64(file)
+
   try {
-    const response = await functions.post('/api/style', {
-      product_id: productId,
-      image_base64: imageBase64,
-      image_mime: 'image/jpeg',
-    })
+    const response = await postStyle(imageBase64, productId)
     return response.data
   } catch (error) {
+    const status = error.response?.status
+    if (status === 429 || status === 502 || status === 504 || error.code === 'ECONNABORTED') {
+      await sleep(status === 429 ? 1600 : 700)
+      try {
+        const retry = await postStyle(imageBase64, productId)
+        return retry.data
+      } catch (retryError) {
+        throw withMessage(retryError)
+      }
+    }
     throw withMessage(error)
   }
 }
 
-// Analytics — never surfaced to the user
 export const trackEvent = (eventName, payload = {}) => {
   if (!api) return Promise.resolve()
   return api.post('/analytics/event', { event_name: eventName, ...payload }).catch(() => {})

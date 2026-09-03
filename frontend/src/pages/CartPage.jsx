@@ -56,7 +56,7 @@ export default function CartPage({ onBack, onCartUpdated }) {
   }
 
   return (
-    <div className="max-w-[1280px] mx-auto px-4 py-6 page-enter">
+    <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-6 page-enter">
       <button
         type="button"
         onClick={onBack}

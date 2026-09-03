@@ -112,10 +112,10 @@ export default function WishlistPage({
   }
 
   return (
-    <div className="max-w-[1280px] mx-auto px-4 py-6 page-enter">
-      <h1 className="text-[17px] font-bold uppercase tracking-[0.02em] text-ink">
+    <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-6 page-enter">
+      <h1 className="text-[16px] font-bold text-ink">
         My Wishlist
-        <span className="ml-2 text-[13px] font-normal normal-case text-muted">
+        <span className="ml-2 text-[13px] font-normal text-muted">
           {products.length} {products.length === 1 ? 'item' : 'items'}
         </span>
       </h1>
@@ -145,7 +145,7 @@ export default function WishlistPage({
           {visible.length === 0 ? (
             <p className="py-16 text-center text-sm text-muted">No items match this view.</p>
           ) : (
-            <div className="mt-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="mt-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8">
               {visible.map((product) => (
                 <ProductCard
                   key={product.product_id}
