@@ -7,7 +7,7 @@ import time
 from groq import Groq
 from PIL import Image
 
-from streamlit_backend.prompts import build_system_prompt, build_user_prompt
+from prompts import build_system_prompt, build_user_prompt
 
 
 def _secret(name, default=""):

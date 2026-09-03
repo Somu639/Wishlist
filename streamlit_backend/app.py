@@ -1,8 +1,8 @@
 import streamlit as st
 
-from streamlit_backend.catalog import PRODUCTS, get_product
-from streamlit_backend.groq_style import analyze_style, get_vision_model
-from streamlit_backend.intelligence import classify_wishlist
+from catalog import PRODUCTS, get_product
+from groq_style import analyze_style, get_vision_model
+from intelligence import classify_wishlist
 
 st.set_page_config(page_title="StyleAI Backend", page_icon="👗", layout="wide")
 

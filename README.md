@@ -97,7 +97,7 @@ Tracked events include `wishlist_view`, `try_on_started`, `ai_analysis_completed
 Streamlit Community Cloud runs **Python Streamlit apps only**. It cannot host the Node/Express REST API that the React app calls. This repo therefore deploys in two complementary ways:
 
 1. **Frontend → Vercel** (`frontend/`): React wishlist UI.
-2. **Python backend → Streamlit Community Cloud** (`streamlit_app.py`): same catalog, intelligence strip, Groq AI Style Preview, and bag — using Streamlit secrets for `GROQ_API_KEY`.
+2. **Python backend → Streamlit Community Cloud** (`streamlit_backend/app.py`): same catalog, intelligence strip, Groq AI Style Preview, and bag — using Streamlit secrets for `GROQ_API_KEY`.
 3. **Express API** (needed if the Vercel React app should call `/api`): host `backend/` on a Node platform such as [Render](https://render.com) (`render.yaml`). Then set Vercel env `VITE_API_URL` to `https://your-api.onrender.com/api` and Render `FRONTEND_URL` to the Vercel origin.
 
 ### Vercel (frontend + AI endpoint)
@@ -124,7 +124,7 @@ npx vercel --prod --yes
 ### Streamlit Community Cloud (Python backend)
 
 1. Open [share.streamlit.io](https://share.streamlit.io/) and sign in with GitHub.
-2. Deploy `Somu639/Wishlist`, main file `streamlit_app.py`. If prompted for a requirements file, use `streamlit_backend/requirements.txt`.
+2. Deploy `Somu639/Wishlist`, branch `main`, main file path **`streamlit_backend/app.py`**. Dependencies come from `streamlit_backend/requirements.txt`, which sits beside the app so the repo root stays free of Python markers that would confuse Vercel.
 3. In **Secrets**, add:
 
 ```toml
@@ -136,8 +136,10 @@ Local:
 
 ```powershell
 pip install -r streamlit_backend/requirements.txt
-streamlit run streamlit_app.py
+streamlit run streamlit_backend/app.py
 ```
+
+For local runs the Groq key is read from `.streamlit/secrets.toml` (gitignored) or the `GROQ_API_KEY` environment variable.
 
 ## Project layout
 
@@ -146,6 +148,5 @@ backend/src/            Express API, Groq service, SQLite
 frontend/src/           Storefront, Wishlist, Style Preview, Bag
 frontend/src/data/      Catalog + localStorage fallback store
 api/style.js            Vercel serverless Groq analysis endpoint
-streamlit_app.py        Streamlit Community Cloud backend UI
-streamlit_backend/      Catalog, Groq, intelligence for Streamlit
+streamlit_backend/      Streamlit Cloud app: app.py, catalog, Groq, intelligence
 ```
