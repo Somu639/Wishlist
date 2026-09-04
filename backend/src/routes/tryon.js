@@ -53,6 +53,7 @@ router.post('/', async (req, res, next) => {
       image_url: result.generated_tryon_image,
       provider: result.provider,
       reason: result.reason,
+      detail: result.detail,
     });
   } catch (err) {
     next(err);

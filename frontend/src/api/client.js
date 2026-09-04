@@ -135,6 +135,7 @@ export async function generateTryOn({ file, productId }) {
       imageUrl: data.processing_status === 'completed' ? data.image_url || null : null,
       status: data.processing_status || 'failed',
       reason: data.reason || null,
+      detail: data.detail || null,
     }
   } catch (error) {
     const status = error.response?.status
@@ -143,13 +144,14 @@ export async function generateTryOn({ file, productId }) {
     else if (status === 404) reason = 'endpoint_missing'
     else if (status === 413) reason = 'photo_too_large'
     else if (error.code === 'ECONNABORTED') reason = 'timeout'
-    return { imageUrl: null, status: 'failed', reason }
+    return { imageUrl: null, status: 'failed', reason, detail: null }
   }
 }
 
 const TRY_ON_NOTICES = {
   not_configured: 'Photoreal try-on is off. Add FAL_KEY in your Vercel environment variables, then redeploy.',
-  auth_failed: 'fal.ai rejected the API key. Check the FAL_KEY value.',
+  auth_failed: 'fal.ai rejected the API key. A fal key is "id:secret" — copy both halves.',
+  rejected_input: 'fal.ai could not use this photo or product image.',
   rate_limited: 'fal.ai is busy right now. Try again in a moment.',
   timeout: 'Try-on took too long. Try again with a smaller photo.',
   no_image: 'fal.ai could not produce a try-on from this photo.',
@@ -162,13 +164,16 @@ const TRY_ON_NOTICES = {
 }
 
 /** Human-readable explanation for a try-on that did not produce an image. */
-export function describeTryOn({ reason }) {
+export function describeTryOn({ reason, detail } = {}) {
   if (!reason) return null
-  if (TRY_ON_NOTICES[reason]) return TRY_ON_NOTICES[reason]
-  if (reason.startsWith('upstream_')) {
-    return `fal.ai returned an error (${reason.replace('upstream_', 'HTTP ')}).`
+
+  let message = TRY_ON_NOTICES[reason]
+  if (!message && reason.startsWith('upstream_')) {
+    message = `fal.ai returned an error (${reason.replace('upstream_', 'HTTP ')}).`
   }
-  return 'Showing a style preview instead of a photoreal try-on.'
+  if (!message) message = 'Showing a style preview instead of a photoreal try-on.'
+
+  return detail ? `${message} — ${detail}` : message
 }
 
 export const trackEvent = (eventName, payload = {}) => {

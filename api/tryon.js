@@ -10,6 +10,21 @@ function stripDataUrl(value) {
   return match ? match[1] : text;
 }
 
+/**
+ * Describes the key without revealing it. A fal key is `<uuid>:<secret>`, and
+ * pasting only the id half is the usual cause of an auth failure.
+ */
+function describeKeyShape(key) {
+  if (!key) return 'missing';
+  const trimmed = key.trim();
+  if (trimmed !== key) return 'has_surrounding_whitespace';
+  if (/^["'].*["']$/.test(trimmed)) return 'wrapped_in_quotes';
+  const parts = trimmed.split(':');
+  if (parts.length !== 2) return `expected_id:secret_but_got_${parts.length}_part(s)`;
+  if (!parts[0] || !parts[1]) return 'empty_half';
+  return 'looks_valid';
+}
+
 async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
   if (typeof req.body === 'string') return JSON.parse(req.body);
@@ -33,6 +48,7 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     return res.status(200).json({
       configured: Boolean(process.env.FAL_KEY || process.env.VTON_API_KEY),
+      key_shape: describeKeyShape(process.env.FAL_KEY || process.env.VTON_API_KEY),
       model: process.env.VTON_MODEL || 'fal-ai/fashn/tryon/v1.6',
       mode: process.env.VTON_MODE || 'balanced',
     });

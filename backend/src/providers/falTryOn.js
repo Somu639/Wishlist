@@ -15,8 +15,18 @@ function tryOnCategory(category) {
   return 'auto';
 }
 
-function failed(reason) {
-  return { processing_status: 'failed', image_url: null, reason };
+function failed(reason, detail) {
+  return { processing_status: 'failed', image_url: null, reason, detail };
+}
+
+/** fal reports errors as `detail`, either a string or a list of field errors. */
+function upstreamDetail(parsed, raw) {
+  const detail = parsed?.detail ?? parsed?.error ?? parsed?.message;
+  if (typeof detail === 'string') return detail.slice(0, 300);
+  if (Array.isArray(detail)) {
+    return detail.map((d) => d?.msg || d?.message || JSON.stringify(d)).join('; ').slice(0, 300);
+  }
+  return String(raw || '').slice(0, 300);
 }
 
 async function runTryOn({ apiKey, model, personDataUrl, garmentUrl, category, signal, mode }) {
@@ -57,16 +67,18 @@ async function runTryOn({ apiKey, model, personDataUrl, garmentUrl, category, si
   }
 
   if (!response.ok) {
-    console.error('[TryOn] fal HTTP', response.status, raw.slice(0, 400));
-    if (response.status === 401 || response.status === 403) return failed('auth_failed');
-    if (response.status === 429) return failed('rate_limited');
-    return failed(`upstream_${response.status}`);
+    const detail = upstreamDetail(parsed, raw);
+    console.error('[TryOn] fal HTTP', response.status, detail);
+    if (response.status === 401 || response.status === 403) return failed('auth_failed', detail);
+    if (response.status === 429) return failed('rate_limited', detail);
+    if (response.status === 422) return failed('rejected_input', detail);
+    return failed(`upstream_${response.status}`, detail);
   }
 
   const image = parsed?.images?.[0]?.url || parsed?.image?.url || null;
   if (!image) {
     console.error('[TryOn] no image in response:', raw.slice(0, 400));
-    return failed('no_image');
+    return failed('no_image', upstreamDetail(parsed, raw));
   }
 
   return { processing_status: 'completed', image_url: image };

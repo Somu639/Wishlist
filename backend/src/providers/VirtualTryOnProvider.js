@@ -143,6 +143,7 @@ class FalVirtualTryOnProvider {
         processing_status: result.processing_status,
         provider: this.name,
         reason: result.reason,
+        detail: result.detail,
       };
     } finally {
       clearTimeout(timer);
