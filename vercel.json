@@ -7,5 +7,15 @@
   "functions": {
     "api/style.js": { "maxDuration": 60 }
   },
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/((?!assets/).*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+    }
+  ],
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
 }
