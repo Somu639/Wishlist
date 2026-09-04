@@ -151,6 +151,7 @@ export async function generateTryOn({ file, productId }) {
 const TRY_ON_NOTICES = {
   not_configured: 'Photoreal try-on is off. Add FAL_KEY in your Vercel environment variables, then redeploy.',
   auth_failed: 'fal.ai rejected the API key. A fal key is "id:secret" — copy both halves.',
+  needs_credits: 'Your fal.ai account has no credit left. Add a balance at fal.ai/dashboard/billing to turn on photoreal try-on.',
   rejected_input: 'fal.ai could not use this photo or product image.',
   rate_limited: 'fal.ai is busy right now. Try again in a moment.',
   timeout: 'Try-on took too long. Try again with a smaller photo.',

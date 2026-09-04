@@ -82,7 +82,11 @@ async function runTryOn({ personDataUrl, garmentUrl, category, signal }) {
   if (!response.ok) {
     const detail = upstreamDetail(parsed, raw);
     console.error('[TryOn] fal HTTP', response.status, detail);
-    if (response.status === 401 || response.status === 403) return failed('auth_failed', detail);
+    if (response.status === 401 || response.status === 403) {
+      // fal locks the account rather than the key when the balance runs out.
+      const outOfCredit = /top_up|locked|balance|insufficient|quota/i.test(detail);
+      return failed(outOfCredit ? 'needs_credits' : 'auth_failed', detail);
+    }
     if (response.status === 429) return failed('rate_limited', detail);
     if (response.status === 422) return failed('rejected_input', detail);
     return failed(`upstream_${response.status}`, detail);
