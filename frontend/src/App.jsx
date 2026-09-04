@@ -32,8 +32,8 @@ export default function App() {
         onCartClick={() => setPage('cart')}
       />
 
-      <div className="pt-[80px]">
-        <div className="bg-[#fff6f0] border-b border-[#ffe3d3] text-center text-[12px] sm:text-[13px] text-ink py-2 px-4">
+      <div className="pt-12">
+        <div className="bg-[#fff6f0] border-b border-[#ffe3d3] text-center text-[11px] text-ink py-1 px-3">
           Flat 40-70% OFF on wishlist favourites · Try <span className="font-bold text-brand-500">AI Style Preview</span> before you buy
         </div>
 

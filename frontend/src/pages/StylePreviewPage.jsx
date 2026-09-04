@@ -13,6 +13,7 @@ const LOADING_MESSAGES = [
   'Analyzing your style...',
   'Checking color compatibility...',
   'Building personalized styling suggestions...',
+  'Still working — waiting for a free AI slot...',
 ]
 
 export default function StylePreviewModal({ product, onClose, onCartUpdated }) {

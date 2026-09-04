@@ -145,7 +145,7 @@ export default function CartPage({ onBack, onCartUpdated }) {
             </div>
           </section>
 
-          <aside className="card p-4 lg:sticky lg:top-[86px]">
+          <aside className="card p-4 lg:sticky lg:top-16">
             <h2 className="text-[13px] font-bold uppercase tracking-[0.04em] text-muted">
               Price Details ({items.length} {items.length === 1 ? 'item' : 'items'})
             </h2>

@@ -19,7 +19,7 @@ function withMessage(error) {
   let userMessage = data?.error || 'Something went wrong. Please try again.'
 
   if (status === 429) {
-    userMessage = data?.error || 'Too many shoppers are using AI Style right now. Wait a few seconds and try again.'
+    userMessage = data?.error || 'AI Style is busy. Wait a few seconds and tap Try again.'
   } else if (status === 504 || error.code === 'ECONNABORTED') {
     userMessage = 'Request timed out. Please try again.'
   }
@@ -94,22 +94,20 @@ export async function analyzeStyle({ file, productId }) {
 
   const imageBase64 = await fileToResizedBase64(file)
 
-  try {
-    const response = await postStyle(imageBase64, productId)
-    return response.data
-  } catch (error) {
-    const status = error.response?.status
-    if (status === 429 || status === 502 || status === 504 || error.code === 'ECONNABORTED') {
-      await sleep(status === 429 ? 1600 : 700)
-      try {
-        const retry = await postStyle(imageBase64, productId)
-        return retry.data
-      } catch (retryError) {
-        throw withMessage(retryError)
-      }
+  let lastError
+  for (const wait of [0, 4000, 8000]) {
+    if (wait) await sleep(wait)
+    try {
+      const response = await postStyle(imageBase64, productId)
+      return response.data
+    } catch (error) {
+      lastError = error
+      const status = error.response?.status
+      const retryable = status === 429 || status === 502 || status === 504 || error.code === 'ECONNABORTED'
+      if (!retryable) throw withMessage(error)
     }
-    throw withMessage(error)
   }
+  throw withMessage(lastError)
 }
 
 export const trackEvent = (eventName, payload = {}) => {

@@ -100,6 +100,18 @@ function successPayload(product, analysis, startedAt) {
   };
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryWaitMs(result, fallback) {
+  const header = Number(result.retryAfter);
+  if (Number.isFinite(header) && header > 0) {
+    return Math.min(12000, Math.max(1500, header * 1000));
+  }
+  return fallback;
+}
+
 async function callGroq({ apiKey, model, product, userDataUrl, includeProductImage, jsonMode, reasoning, signal }) {
   const content = [
     { type: 'text', text: buildUserPrompt(product) },
@@ -148,6 +160,7 @@ async function callGroq({ apiKey, model, product, userDataUrl, includeProductIma
     status: groqResponse.status,
     parsed,
     detail,
+    retryAfter: groqResponse.headers.get('retry-after'),
     upstreamCode: parsed?.error?.code || parsed?.error?.type || '',
     failedGeneration: parsed?.error?.failed_generation || '',
     content: parsed?.choices?.[0]?.message?.content || '',
@@ -214,21 +227,19 @@ module.exports = async (req, res) => {
   const model = process.env.GROQ_VISION_MODEL || 'qwen/qwen3.6-27b';
   const startedAt = Date.now();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 50000);
+  const timer = setTimeout(() => controller.abort(), 55000);
   const userDataUrl = `data:${mime};base64,${imageBase64}`;
 
   const attempts = [
     { includeProductImage: true, jsonMode: true, reasoning: true },
     { includeProductImage: false, jsonMode: true, reasoning: true },
-    { includeProductImage: true, jsonMode: false, reasoning: true },
-    { includeProductImage: false, jsonMode: false, reasoning: false },
   ];
 
   try {
     let last = null;
 
     for (const attempt of attempts) {
-      const result = await callGroq({
+      let result = await callGroq({
         apiKey,
         model,
         product,
@@ -236,13 +247,26 @@ module.exports = async (req, res) => {
         signal: controller.signal,
         ...attempt,
       });
+
+      if (result.status === 429) {
+        for (const wait of [3000, 7000]) {
+          await sleep(retryWaitMs(result, wait));
+          result = await callGroq({
+            apiKey,
+            model,
+            product,
+            userDataUrl,
+            signal: controller.signal,
+            ...attempt,
+          });
+          if (result.status !== 429) break;
+        }
+      }
+
       last = result;
 
       if (result.status === 429) {
-        return res.status(429).json({
-          error: 'Too many shoppers are using AI Style right now. Wait a few seconds and try again.',
-          code: 'GROQ_RATE_LIMIT',
-        });
+        continue;
       }
 
       if (result.status === 401 || result.status === 403) {
@@ -274,6 +298,13 @@ module.exports = async (req, res) => {
           code: 'GROQ_MODEL_UNAVAILABLE',
         });
       }
+    }
+
+    if (last?.status === 429) {
+      return res.status(429).json({
+        error: 'AI Style is busy. Wait a few seconds and tap Try again.',
+        code: 'GROQ_RATE_LIMIT',
+      });
     }
 
     return res.status(502).json({
