@@ -8,7 +8,7 @@ function joinList(items) {
   return items.filter(Boolean).join('  •  ')
 }
 
-export default function StyleResultsPanel({ product, analysis, tryOn, userPhotoSrc, onTryAnother, onCartUpdated }) {
+export default function StyleResultsPanel({ product, analysis, tryOn, userPhotoSrc, lookImage, onTryAnother, onCartUpdated }) {
   const [addingToBag, setAddingToBag] = useState(false)
 
   const why = (analysis.why_it_works || []).slice(0, 3)
@@ -43,7 +43,7 @@ export default function StyleResultsPanel({ product, analysis, tryOn, userPhotoS
     onTryAnother()
   }
 
-  const lookSrc = tryOn?.generated_tryon_image || null
+  const lookSrc = lookImage || tryOn?.generated_tryon_image || null
 
   return (
     <div className="page-enter px-1 pt-2 pb-4 text-center">
@@ -52,20 +52,14 @@ export default function StyleResultsPanel({ product, analysis, tryOn, userPhotoS
       </h2>
 
       <div className="mt-4">
-        {lookSrc ? (
-          <img
-            src={lookSrc}
-            alt={`${product.product_name} on your photo`}
-            className="w-full max-h-80 object-contain bg-[#f4f4f5]"
-          />
-        ) : (
-          <StyleLookPreview
-            userSrc={userPhotoSrc}
-            productSrc={product.image_url}
-            productName={product.product_name}
-            category={product.category}
-          />
-        )}
+        <StyleLookPreview
+          userSrc={userPhotoSrc}
+          productId={product.product_id}
+          productSrc={product.image_url}
+          productName={product.product_name}
+          category={product.category}
+          generatedSrc={lookSrc}
+        />
       </div>
 
       <p className="mt-6 text-[42px] font-light tracking-tight text-gray-900 leading-none">

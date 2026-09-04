@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { analyzeStyle, trackEvent } from '../api/client.js'
 import StyleResultsPanel from '../components/StyleResultsPanel.jsx'
 import { formatInr } from '../utils/format.js'
+import { generateLookOverlay } from '../utils/composeLook.js'
 
 const MAX_SIZE_BYTES = 10 * 1024 * 1024
 const ACCEPTED_TYPES = { 'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'], 'image/webp': ['.webp'] }
@@ -12,6 +13,7 @@ const ACCEPTED_TYPES = { 'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'],
 const LOADING_MESSAGES = [
   'Analyzing your style...',
   'Checking color compatibility...',
+  'Generating your look overlay...',
   'Building personalized styling suggestions...',
   'Still working — waiting for a free AI slot...',
 ]
@@ -21,6 +23,7 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
   const [analysisResult, setAnalysisResult] = useState(null)
   const [reconsider, setReconsider] = useState(null)
   const [tryOn, setTryOn] = useState(null)
+  const [lookImage, setLookImage] = useState(null)
   const [experienceLabel, setExperienceLabel] = useState('AI Style Recommendation')
   const [loading, setLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0])
@@ -71,6 +74,7 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
       setAnalysisResult(null)
       setReconsider(null)
       setTryOn(null)
+      setLookImage(null)
       setExperienceLabel('AI Style Recommendation')
     }
   }, [])
@@ -93,13 +97,26 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
     setError(null)
     setLoadingMessage(LOADING_MESSAGES[0])
 
+    const overlayPromise = generateLookOverlay({
+      userSrc: photo.preview,
+      productId: product.product_id,
+      productUrl: product.image_url,
+      category: product.category,
+    }).catch(() => null)
+
     try {
       trackEvent('photo_uploaded', { product_id: product.product_id, product_category: product.category })
       trackEvent('try_on_started', { product_id: product.product_id, product_category: product.category })
       const data = await analyzeStyle({ file: photo.file, productId: product.product_id })
+      const overlay = data.try_on?.generated_tryon_image || await overlayPromise
       setAnalysisResult(data.analysis)
       setReconsider(data.reconsider || null)
-      setTryOn(data.try_on || null)
+      setTryOn({
+        ...(data.try_on || {}),
+        generated_tryon_image: overlay,
+        processing_status: overlay ? 'completed' : (data.try_on?.processing_status || 'unavailable'),
+      })
+      setLookImage(overlay)
       setExperienceLabel(data.experience_label || 'AI Style Recommendation')
       trackEvent('ai_analysis_completed', {
         product_id: product.product_id,
@@ -122,10 +139,11 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
     setPhoto(null)
     setAnalysisResult(null)
     setReconsider(null)
-    setTryOn(null)
-    setExperienceLabel('AI Style Recommendation')
-    setError(null)
-  }
+      setTryOn(null)
+      setLookImage(null)
+      setExperienceLabel('AI Style Recommendation')
+      setError(null)
+    }
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center">
@@ -180,6 +198,7 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
                 reconsider={reconsider}
                 tryOn={tryOn}
                 userPhotoSrc={photo?.preview}
+                lookImage={lookImage}
                 experienceLabel={experienceLabel}
                 onTryAnother={onClose}
                 onCartUpdated={onCartUpdated}

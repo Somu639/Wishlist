@@ -84,6 +84,7 @@ app.use('/api/wishlist', wishlistRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/analyze-style', analyzeStyleRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/image', require('./routes/productImage'));
 
 // --- 404 handler ---
 app.use((req, res) => {
