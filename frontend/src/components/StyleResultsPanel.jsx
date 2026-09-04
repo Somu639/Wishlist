@@ -8,7 +8,7 @@ function joinList(items) {
   return items.filter(Boolean).join('  •  ')
 }
 
-export default function StyleResultsPanel({ product, analysis, userPhotoSrc, lookImage, lookKind, onTryAnother, onCartUpdated }) {
+export default function StyleResultsPanel({ product, analysis, userPhotoSrc, lookImage, lookKind, tryOnNotice, onTryAnother, onCartUpdated }) {
   const [addingToBag, setAddingToBag] = useState(false)
 
   const why = (analysis.why_it_works || []).slice(0, 3)
@@ -61,6 +61,7 @@ export default function StyleResultsPanel({ product, analysis, userPhotoSrc, loo
           category={product.category}
           generatedSrc={lookSrc}
           lookKind={lookKind}
+          tryOnNotice={tryOnNotice}
         />
       </div>
 

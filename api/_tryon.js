@@ -48,8 +48,8 @@ async function runTryOn({ personDataUrl, garmentUrl, category, signal }) {
         model_image: personDataUrl,
         garment_image: garmentUrl,
         category: tryOnCategory(category),
-        // Catalog shots are photographed on a model, not flat-lay.
-        garment_photo_type: 'model',
+        // Catalog images are a mix of on-model and product shots.
+        garment_photo_type: 'auto',
         mode: process.env.VTON_MODE || 'balanced',
         num_samples: 1,
         output_format: 'jpeg',

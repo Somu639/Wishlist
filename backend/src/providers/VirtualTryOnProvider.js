@@ -28,6 +28,7 @@ class UnavailableVirtualTryOnProvider {
       confidence: null,
       processing_status: 'unavailable',
       provider: this.name,
+      reason: 'not_configured',
     };
   }
 }
@@ -141,6 +142,7 @@ class FalVirtualTryOnProvider {
         confidence: null,
         processing_status: result.processing_status,
         provider: this.name,
+        reason: result.reason,
       };
     } finally {
       clearTimeout(timer);

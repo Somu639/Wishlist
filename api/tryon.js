@@ -21,12 +21,21 @@ async function readBody(req) {
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    res.setHeader('Allow', 'POST, OPTIONS');
+    res.setHeader('Allow', 'GET, POST, OPTIONS');
     return res.status(204).end();
+  }
+
+  // Config probe: open this in a browser to check whether the key landed.
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      configured: Boolean(process.env.FAL_KEY || process.env.VTON_API_KEY),
+      model: process.env.VTON_MODEL || 'fal-ai/fashn/tryon/v1.6',
+      mode: process.env.VTON_MODE || 'balanced',
+    });
   }
 
   if (req.method !== 'POST') {

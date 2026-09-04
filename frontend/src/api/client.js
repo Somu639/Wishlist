@@ -111,8 +111,11 @@ export async function analyzeStyle({ file, productId }) {
 }
 
 /**
- * Photoreal try-on. Resolves to null whenever try-on is not configured or the
- * vendor fails, so the caller can fall back to the browser-side style preview.
+ * Photoreal try-on. Never throws: it reports why it could not produce an image
+ * so the caller can fall back to the browser-side style preview and still tell
+ * the shopper what happened.
+ *
+ * @returns {Promise<{imageUrl: string|null, status: string, reason: string|null}>}
  */
 export async function generateTryOn({ file, productId }) {
   try {
@@ -122,11 +125,50 @@ export async function generateTryOn({ file, productId }) {
       { product_id: productId, image_base64: imageBase64, image_mime: 'image/jpeg' },
       { timeout: 120000 },
     )
+
     const data = response.data || {}
-    return data.processing_status === 'completed' && data.image_url ? data.image_url : null
-  } catch {
-    return null
+    if (typeof data !== 'object') {
+      return { imageUrl: null, status: 'failed', reason: 'endpoint_missing' }
+    }
+
+    return {
+      imageUrl: data.processing_status === 'completed' ? data.image_url || null : null,
+      status: data.processing_status || 'failed',
+      reason: data.reason || null,
+    }
+  } catch (error) {
+    const status = error.response?.status
+    let reason = 'request_failed'
+    if (status === 401 || status === 403) reason = 'blocked'
+    else if (status === 404) reason = 'endpoint_missing'
+    else if (status === 413) reason = 'photo_too_large'
+    else if (error.code === 'ECONNABORTED') reason = 'timeout'
+    return { imageUrl: null, status: 'failed', reason }
   }
+}
+
+const TRY_ON_NOTICES = {
+  not_configured: 'Photoreal try-on is off. Add FAL_KEY in your Vercel environment variables, then redeploy.',
+  auth_failed: 'fal.ai rejected the API key. Check the FAL_KEY value.',
+  rate_limited: 'fal.ai is busy right now. Try again in a moment.',
+  timeout: 'Try-on took too long. Try again with a smaller photo.',
+  no_image: 'fal.ai could not produce a try-on from this photo.',
+  missing_images: 'Try-on needs both your photo and the product image.',
+  blocked: 'Vercel deployment protection is blocking the try-on endpoint.',
+  endpoint_missing: 'The try-on endpoint is not deployed yet.',
+  photo_too_large: 'That photo is too large for try-on.',
+  network_error: 'Could not reach the try-on service.',
+  request_failed: 'The try-on request failed.',
+}
+
+/** Human-readable explanation for a try-on that did not produce an image. */
+export function describeTryOn({ reason }) {
+  if (!reason) return null
+  if (TRY_ON_NOTICES[reason]) return TRY_ON_NOTICES[reason]
+  if (reason.startsWith('upstream_')) {
+    return `fal.ai returned an error (${reason.replace('upstream_', 'HTTP ')}).`
+  }
+  return 'Showing a style preview instead of a photoreal try-on.'
 }
 
 export const trackEvent = (eventName, payload = {}) => {

@@ -9,6 +9,7 @@ export default function StyleLookPreview({
   category,
   generatedSrc,
   lookKind = 'preview',
+  tryOnNotice,
   onGenerated,
 }) {
   const [composed, setComposed] = useState(generatedSrc || null)
@@ -83,6 +84,9 @@ export default function StyleLookPreview({
           </p>
         </div>
       </div>
+      {!isTryOn && tryOnNotice && (
+        <p className="mt-2 text-[11px] leading-snug text-gray-500 text-left">{tryOnNotice}</p>
+      )}
     </div>
   )
 }

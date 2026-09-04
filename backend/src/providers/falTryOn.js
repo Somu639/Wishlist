@@ -36,7 +36,7 @@ async function runTryOn({ apiKey, model, personDataUrl, garmentUrl, category, si
         model_image: personDataUrl,
         garment_image: garmentUrl,
         category: tryOnCategory(category),
-        garment_photo_type: 'model',
+        garment_photo_type: 'auto',
         mode: mode || process.env.VTON_MODE || 'balanced',
         num_samples: 1,
         output_format: 'jpeg',

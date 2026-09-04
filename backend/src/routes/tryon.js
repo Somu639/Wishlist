@@ -12,6 +12,14 @@ function stripDataUrl(value) {
   return match ? match[1] : text;
 }
 
+router.get('/', (req, res) => {
+  res.json({
+    configured: Boolean(process.env.FAL_KEY || process.env.VTON_API_KEY),
+    model: process.env.VTON_MODEL || 'fal-ai/fashn/tryon/v1.6',
+    mode: process.env.VTON_MODE || 'balanced',
+  });
+});
+
 router.post('/', async (req, res, next) => {
   try {
     const imageBase64 = stripDataUrl(req.body?.image_base64);
@@ -44,6 +52,7 @@ router.post('/', async (req, res, next) => {
       processing_status: result.processing_status,
       image_url: result.generated_tryon_image,
       provider: result.provider,
+      reason: result.reason,
     });
   } catch (err) {
     next(err);
