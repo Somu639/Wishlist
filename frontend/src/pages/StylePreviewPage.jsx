@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { X, Camera, Sparkles, Lock, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { analyzeStyle, trackEvent } from '../api/client.js'
+import { analyzeStyle, generateTryOn, trackEvent } from '../api/client.js'
 import StyleResultsPanel from '../components/StyleResultsPanel.jsx'
 import { formatInr } from '../utils/format.js'
 import { generateLookOverlay } from '../utils/composeLook.js'
@@ -13,7 +13,7 @@ const ACCEPTED_TYPES = { 'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'],
 const LOADING_MESSAGES = [
   'Analyzing your style...',
   'Checking color compatibility...',
-  'Changing the outfit on your photo...',
+  'Fitting the outfit onto your photo...',
   'Building personalized styling suggestions...',
   'Still working — waiting for a free AI slot...',
 ]
@@ -22,8 +22,8 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
   const [photo, setPhoto] = useState(null)
   const [analysisResult, setAnalysisResult] = useState(null)
   const [reconsider, setReconsider] = useState(null)
-  const [tryOn, setTryOn] = useState(null)
   const [lookImage, setLookImage] = useState(null)
+  const [lookKind, setLookKind] = useState('preview')
   const [experienceLabel, setExperienceLabel] = useState('AI Style Recommendation')
   const [loading, setLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0])
@@ -73,8 +73,8 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
       })
       setAnalysisResult(null)
       setReconsider(null)
-      setTryOn(null)
       setLookImage(null)
+      setLookKind('preview')
       setExperienceLabel('AI Style Recommendation')
     }
   }, [])
@@ -97,7 +97,10 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
     setError(null)
     setLoadingMessage(LOADING_MESSAGES[0])
 
-    const overlayPromise = generateLookOverlay({
+    // Photoreal try-on and the browser-side style preview run alongside the
+    // written analysis; whichever try-on succeeds is what the shopper sees.
+    const tryOnPromise = generateTryOn({ file: photo.file, productId: product.product_id })
+    const previewPromise = generateLookOverlay({
       userSrc: photo.preview,
       productId: product.product_id,
       productUrl: product.image_url,
@@ -108,20 +111,18 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
       trackEvent('photo_uploaded', { product_id: product.product_id, product_category: product.category })
       trackEvent('try_on_started', { product_id: product.product_id, product_category: product.category })
       const data = await analyzeStyle({ file: photo.file, productId: product.product_id })
-      const look = await overlayPromise
+      const tryOnImage = await tryOnPromise
+      const look = tryOnImage || await previewPromise
       setAnalysisResult(data.analysis)
       setReconsider(data.reconsider || null)
-      setTryOn({
-        ...(data.try_on || {}),
-        generated_tryon_image: look,
-        processing_status: look ? 'completed' : 'unavailable',
-      })
       setLookImage(look)
+      setLookKind(tryOnImage ? 'tryon' : 'preview')
       setExperienceLabel(data.experience_label || 'AI Style Recommendation')
       trackEvent('ai_analysis_completed', {
         product_id: product.product_id,
         product_category: product.category,
         ai_score: data.analysis?.overall_score,
+        try_on: tryOnImage ? 'photoreal' : 'style_preview',
       })
       trackEvent('style_recommendation_viewed', { product_id: product.product_id })
     } catch (err) {
@@ -139,11 +140,11 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
     setPhoto(null)
     setAnalysisResult(null)
     setReconsider(null)
-      setTryOn(null)
-      setLookImage(null)
-      setExperienceLabel('AI Style Recommendation')
-      setError(null)
-    }
+    setLookImage(null)
+    setLookKind('preview')
+    setExperienceLabel('AI Style Recommendation')
+    setError(null)
+  }
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center">
@@ -196,9 +197,9 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
                 product={product}
                 analysis={analysisResult}
                 reconsider={reconsider}
-                tryOn={tryOn}
                 userPhotoSrc={photo?.preview}
                 lookImage={lookImage}
+                lookKind={lookKind}
                 experienceLabel={experienceLabel}
                 onTryAnother={onClose}
                 onCartUpdated={onCartUpdated}

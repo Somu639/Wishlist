@@ -63,8 +63,10 @@ app.use(cors({
 }));
 
 // --- Body parsing ---
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+// Try-on posts the shopper photo as base64 JSON, so this is larger than a
+// plain form body needs to be.
+app.use(express.json({ limit: '6mb' }));
+app.use(express.urlencoded({ extended: true, limit: '6mb' }));
 
 // --- General rate limiting ---
 app.use('/api', generalLimiter);
@@ -85,6 +87,7 @@ app.use('/api/cart', cartRouter);
 app.use('/api/analyze-style', analyzeStyleRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/image', require('./routes/productImage'));
+app.use('/api/tryon', require('./routes/tryon'));
 
 // --- 404 handler ---
 app.use((req, res) => {

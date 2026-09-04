@@ -5,7 +5,8 @@
   "buildCommand": "npm run build --prefix frontend",
   "outputDirectory": "frontend/dist",
   "functions": {
-    "api/style.js": { "maxDuration": 60 }
+    "api/style.js": { "maxDuration": 60 },
+    "api/tryon.js": { "maxDuration": 60 }
   },
   "headers": [
     {

@@ -11,6 +11,8 @@
  * Add a new class and register it in createVirtualTryOnProvider() to swap vendors.
  */
 
+const { runTryOn } = require('./falTryOn');
+
 class UnavailableVirtualTryOnProvider {
   constructor() {
     this.name = 'none';
@@ -100,19 +102,79 @@ class HttpVirtualTryOnProvider {
   }
 }
 
+/**
+ * Photoreal try-on through fal.ai (FASHN v1.6 by default). Takes the shopper
+ * photo plus the catalog garment shot and returns the shopper wearing it.
+ */
+class FalVirtualTryOnProvider {
+  constructor({ apiKey, model, timeoutMs = 55000 } = {}) {
+    this.name = 'fal';
+    this.apiKey = apiKey;
+    this.model = model || 'fal-ai/fashn/tryon/v1.6';
+    this.timeoutMs = timeoutMs;
+  }
+
+  isEnabled() {
+    return Boolean(this.apiKey);
+  }
+
+  async generate({ user_image, product_image_url, product_metadata }) {
+    if (!this.isEnabled()) {
+      return new UnavailableVirtualTryOnProvider().generate();
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    try {
+      const result = await runTryOn({
+        apiKey: this.apiKey,
+        model: this.model,
+        personDataUrl: user_image,
+        garmentUrl: product_image_url,
+        category: product_metadata?.category,
+        signal: controller.signal,
+      });
+
+      return {
+        generated_tryon_image: result.image_url,
+        confidence: null,
+        processing_status: result.processing_status,
+        provider: this.name,
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
 function createVirtualTryOnProvider() {
-  const driver = (process.env.VTON_PROVIDER || 'none').toLowerCase();
+  const configured = (process.env.VTON_PROVIDER || '').toLowerCase();
+  const falKey = process.env.FAL_KEY;
+
+  // An unset VTON_PROVIDER turns try-on on as soon as a FAL_KEY exists.
+  const driver = configured || (falKey ? 'fal' : 'none');
+
+  if (driver === 'fal' && falKey) {
+    return new FalVirtualTryOnProvider({
+      apiKey: falKey,
+      model: process.env.VTON_MODEL,
+    });
+  }
+
   if (driver === 'http' && process.env.VTON_API_URL) {
     return new HttpVirtualTryOnProvider({
       endpoint: process.env.VTON_API_URL,
       apiKey: process.env.VTON_API_KEY,
     });
   }
+
   return new UnavailableVirtualTryOnProvider();
 }
 
 module.exports = {
   UnavailableVirtualTryOnProvider,
   HttpVirtualTryOnProvider,
+  FalVirtualTryOnProvider,
   createVirtualTryOnProvider,
 };

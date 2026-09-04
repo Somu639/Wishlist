@@ -3,10 +3,6 @@ export function productImageSrc(productId, fallbackUrl) {
   return fallbackUrl
 }
 
-export function isGeneratedLook(src) {
-  return typeof src === 'string' && src.startsWith('data:image')
-}
-
 function loadImage(src, withCors = false) {
   return new Promise((resolve, reject) => {
     const img = new Image()

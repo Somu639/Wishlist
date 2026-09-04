@@ -33,6 +33,8 @@ GROQ_API_KEY=your_real_key
 GROQ_VISION_MODEL=qwen/qwen3.6-27b
 PORT=5000
 FRONTEND_URL=http://localhost:5173
+# Optional: photoreal try-on via fal.ai
+FAL_KEY=your_fal_key
 ```
 
 ```powershell
@@ -110,6 +112,21 @@ The Vercel deployment is self-contained:
 
 - Wishlist and bag run on browser `localStorage`, seeded from `frontend/src/data/catalog.js`, so the storefront is never empty without a backend.
 - AI Style Preview posts the resized photo to the `api/style.js` serverless function, which calls Groq directly. Add `GROQ_API_KEY` (and optionally `GROQ_VISION_MODEL`) in **Settings → Environment Variables**. Without it the modal reports that AI Style is not configured.
+- Photoreal try-on runs through `api/tryon.js` on [fal.ai](https://fal.ai) (FASHN v1.6). Add `FAL_KEY` in the same settings page to turn it on. Without the key the result image falls back to the browser-side style preview and no error is shown.
+
+### Virtual try-on
+
+Try-on is optional and independent of Groq — Groq only writes the text analysis and is never asked to generate images.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `FAL_KEY` | unset | fal.ai key. Try-on stays off until this is set. |
+| `VTON_MODEL` | `fal-ai/fashn/tryon/v1.6` | Any fal try-on endpoint taking `model_image` + `garment_image`. |
+| `VTON_MODE` | `balanced` | `performance`, `balanced`, or `quality`. |
+
+FASHN v1.6 bills about $0.075 per generated image. The garment category is derived from the product record, so sarees, kurtis and dresses map to `one-pieces`, jeans to `bottoms`, and shirts or blazers to `tops`.
+
+When try-on is unavailable the modal still shows a style preview generated from the shopper's own photo, labelled as a preview rather than a try-on.
 
 To use the Express API instead, set `VITE_API_URL` = `https://<api-host>/api`; the frontend then prefers it and falls back to local data if it is unreachable.
 

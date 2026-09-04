@@ -3,13 +3,12 @@ import { Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { addToCart, fetchCart, trackEvent } from '../api/client.js'
 import StyleLookPreview from './StyleLookPreview.jsx'
-import { isGeneratedLook } from '../utils/composeLook.js'
 
 function joinList(items) {
   return items.filter(Boolean).join('  •  ')
 }
 
-export default function StyleResultsPanel({ product, analysis, tryOn, userPhotoSrc, lookImage, onTryAnother, onCartUpdated }) {
+export default function StyleResultsPanel({ product, analysis, userPhotoSrc, lookImage, lookKind, onTryAnother, onCartUpdated }) {
   const [addingToBag, setAddingToBag] = useState(false)
 
   const why = (analysis.why_it_works || []).slice(0, 3)
@@ -44,7 +43,8 @@ export default function StyleResultsPanel({ product, analysis, tryOn, userPhotoS
     onTryAnother()
   }
 
-  const lookSrc = [lookImage, tryOn?.generated_tryon_image].find(isGeneratedLook) || null
+  // Only ever the generated result — never the catalog photo.
+  const lookSrc = lookImage || null
 
   return (
     <div className="page-enter px-1 pt-2 pb-4 text-center">
@@ -60,6 +60,7 @@ export default function StyleResultsPanel({ product, analysis, tryOn, userPhotoS
           productName={product.product_name}
           category={product.category}
           generatedSrc={lookSrc}
+          lookKind={lookKind}
         />
       </div>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { generateLookOverlay, isGeneratedLook } from '../utils/composeLook.js'
+import { generateLookOverlay } from '../utils/composeLook.js'
 
 export default function StyleLookPreview({
   userSrc,
@@ -8,15 +8,16 @@ export default function StyleLookPreview({
   productName,
   category,
   generatedSrc,
+  lookKind = 'preview',
   onGenerated,
 }) {
-  const [composed, setComposed] = useState(isGeneratedLook(generatedSrc) ? generatedSrc : null)
-  const [busy, setBusy] = useState(!isGeneratedLook(generatedSrc))
+  const [composed, setComposed] = useState(generatedSrc || null)
+  const [busy, setBusy] = useState(!generatedSrc)
   const [userFailed, setUserFailed] = useState(false)
   const runId = useRef(0)
 
   useEffect(() => {
-    if (isGeneratedLook(generatedSrc)) {
+    if (generatedSrc) {
       setComposed(generatedSrc)
       setBusy(false)
       return undefined
@@ -55,18 +56,20 @@ export default function StyleLookPreview({
     )
   }
 
+  const isTryOn = lookKind === 'tryon' && Boolean(composed)
+
   return (
     <div className="w-full">
       <div className="relative w-full aspect-[3/4] max-h-80 mx-auto overflow-hidden bg-[#111]">
         <img
           src={composed || userSrc}
-          alt={composed ? `${productName} styled on your photo` : 'Your uploaded photo'}
+          alt={composed ? `${productName} on your photo` : 'Your uploaded photo'}
           className="w-full h-full object-contain"
           onError={() => setUserFailed(true)}
         />
         {busy && (
           <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
-            <p className="text-white text-[12px] font-semibold">Changing the outfit on your photo…</p>
+            <p className="text-white text-[12px] font-semibold">Fitting the outfit onto your photo…</p>
           </div>
         )}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pt-8 pb-2.5 text-left">
@@ -74,7 +77,9 @@ export default function StyleLookPreview({
             {productName} on your photo
           </p>
           <p className="text-[10px] text-white/80">
-            Your photo with this item's colors — not a photoreal try-on or fit guarantee
+            {isTryOn
+              ? 'AI virtual try-on — an illustration, not a guarantee of fit'
+              : "Style preview using this item's colors — not a photoreal try-on"}
           </p>
         </div>
       </div>

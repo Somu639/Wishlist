@@ -110,6 +110,25 @@ export async function analyzeStyle({ file, productId }) {
   throw withMessage(lastError)
 }
 
+/**
+ * Photoreal try-on. Resolves to null whenever try-on is not configured or the
+ * vendor fails, so the caller can fall back to the browser-side style preview.
+ */
+export async function generateTryOn({ file, productId }) {
+  try {
+    const imageBase64 = await fileToResizedBase64(file)
+    const response = await functions.post(
+      '/api/tryon',
+      { product_id: productId, image_base64: imageBase64, image_mime: 'image/jpeg' },
+      { timeout: 120000 },
+    )
+    const data = response.data || {}
+    return data.processing_status === 'completed' && data.image_url ? data.image_url : null
+  } catch {
+    return null
+  }
+}
+
 export const trackEvent = (eventName, payload = {}) => {
   if (!api) return Promise.resolve()
   return api.post('/analytics/event', { event_name: eventName, ...payload }).catch(() => {})
