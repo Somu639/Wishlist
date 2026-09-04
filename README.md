@@ -112,21 +112,35 @@ The Vercel deployment is self-contained:
 
 - Wishlist and bag run on browser `localStorage`, seeded from `frontend/src/data/catalog.js`, so the storefront is never empty without a backend.
 - AI Style Preview posts the resized photo to the `api/style.js` serverless function, which calls Groq directly. Add `GROQ_API_KEY` (and optionally `GROQ_VISION_MODEL`) in **Settings → Environment Variables**. Without it the modal reports that AI Style is not configured.
-- Photoreal try-on runs through `api/tryon.js` on [fal.ai](https://fal.ai) (FASHN v1.6). Add `FAL_KEY` in the same settings page to turn it on. Without the key the result image falls back to the browser-side style preview and no error is shown.
+- Photoreal try-on runs through `api/tryon.js`. It needs no key and no account — see below.
 
 ### Virtual try-on
 
-Try-on is optional and independent of Groq — Groq only writes the text analysis and is never asked to generate images.
+Try-on is independent of Groq: Groq only writes the text analysis and is never asked to generate images.
+
+Two engines are selected automatically:
+
+| Engine | When it is used | Cost | Speed |
+| --- | --- | --- | --- |
+| Hugging Face [IDM-VTON](https://huggingface.co/spaces/yisol/IDM-VTON) Space | Default. No key required. | Free | ~20–40s, shared GPU queue |
+| [fal.ai](https://fal.ai) FASHN v1.6 | When `FAL_KEY` is set | ~$0.075 / image | ~5–15s |
+
+If a `FAL_KEY` is present but unusable — rejected, rate limited, or an account out of credit — the request falls back to the free Space rather than failing, so a lapsed billing account never breaks the demo.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `FAL_KEY` | unset | fal.ai key. Try-on stays off until this is set. |
-| `VTON_MODEL` | `fal-ai/fashn/tryon/v1.6` | Any fal try-on endpoint taking `model_image` + `garment_image`. |
-| `VTON_MODE` | `balanced` | `performance`, `balanced`, or `quality`. |
+| `FAL_KEY` | unset | Switches to fal.ai. Optional. |
+| `HF_TOKEN` | unset | Optional free Hugging Face token; raises the shared-GPU quota. |
+| `VTON_PROVIDER` | auto | `fal`, `huggingface`, `http`, or `none` to force one engine. |
+| `VTON_HF_SPACE` | `https://yisol-idm-vton.hf.space` | Any Gradio Space exposing a `/tryon` endpoint. |
+| `VTON_MODEL` | `fal-ai/fashn/tryon/v1.6` | Any fal endpoint taking `model_image` + `garment_image`. |
+| `VTON_MODE` | `balanced` | fal only: `performance`, `balanced`, or `quality`. |
 
-FASHN v1.6 bills about $0.075 per generated image. The garment category is derived from the product record, so sarees, kurtis and dresses map to `one-pieces`, jeans to `bottoms`, and shirts or blazers to `tops`.
+`GET /api/tryon` reports which engine is active, which is the quickest way to check a deployment.
 
-When try-on is unavailable the modal still shows a style preview generated from the shopper's own photo, labelled as a preview rather than a try-on.
+When try-on cannot run, the modal shows a style preview generated from the shopper's own photo, labelled as a preview, with the reason printed underneath.
+
+The free Space runs on a shared queue, so try-on can take up to a minute or come back busy. Set `FAL_KEY` for a demo that has to be fast and predictable.
 
 To use the Express API instead, set `VITE_API_URL` = `https://<api-host>/api`; the frontend then prefers it and falls back to local data if it is unreachable.
 

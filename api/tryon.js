@@ -1,5 +1,5 @@
 const { getProduct } = require('./_catalog');
-const { runTryOn } = require('./_tryon');
+const { runTryOn, activeEngine } = require('./_tryon');
 
 const MAX_BASE64_LENGTH = 4 * 1024 * 1024;
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -46,11 +46,15 @@ module.exports = async (req, res) => {
 
   // Config probe: open this in a browser to check whether the key landed.
   if (req.method === 'GET') {
+    const engine = activeEngine();
     return res.status(200).json({
-      configured: Boolean(process.env.FAL_KEY || process.env.VTON_API_KEY),
-      key_shape: describeKeyShape(process.env.FAL_KEY || process.env.VTON_API_KEY),
-      model: process.env.VTON_MODEL || 'fal-ai/fashn/tryon/v1.6',
-      mode: process.env.VTON_MODE || 'balanced',
+      engine,
+      // The free Space needs no key, so try-on is on unless explicitly disabled.
+      configured: engine !== 'none',
+      fal_key_shape: describeKeyShape(process.env.FAL_KEY || process.env.VTON_API_KEY),
+      model: engine === 'fal'
+        ? process.env.VTON_MODEL || 'fal-ai/fashn/tryon/v1.6'
+        : process.env.VTON_HF_SPACE || 'https://yisol-idm-vton.hf.space',
     });
   }
 
@@ -88,6 +92,7 @@ module.exports = async (req, res) => {
       personDataUrl: `data:${mime};base64,${imageBase64}`,
       garmentUrl: product.image_url,
       category: product.category,
+      product,
       signal: controller.signal,
     });
 

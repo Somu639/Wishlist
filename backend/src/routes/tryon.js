@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../db/database');
 const { createVirtualTryOnProvider } = require('../providers/VirtualTryOnProvider');
+const { activeEngine } = require('../providers/tryOnEngines');
 
 const router = express.Router();
 const MAX_BASE64_LENGTH = 4 * 1024 * 1024;
@@ -13,10 +14,13 @@ function stripDataUrl(value) {
 }
 
 router.get('/', (req, res) => {
+  const engine = activeEngine();
   res.json({
-    configured: Boolean(process.env.FAL_KEY || process.env.VTON_API_KEY),
-    model: process.env.VTON_MODEL || 'fal-ai/fashn/tryon/v1.6',
-    mode: process.env.VTON_MODE || 'balanced',
+    engine,
+    configured: engine !== 'none',
+    model: engine === 'fal'
+      ? process.env.VTON_MODEL || 'fal-ai/fashn/tryon/v1.6'
+      : process.env.VTON_HF_SPACE || 'https://yisol-idm-vton.hf.space',
   });
 });
 
@@ -24,7 +28,7 @@ router.post('/', async (req, res, next) => {
   try {
     const imageBase64 = stripDataUrl(req.body?.image_base64);
     const product = db
-      .prepare('SELECT product_id, category, image_url FROM products WHERE product_id = ?')
+      .prepare('SELECT product_id, product_name, category, color, material, image_url FROM products WHERE product_id = ?')
       .get(req.body?.product_id || '');
 
     if (!product || !imageBase64) {
@@ -44,7 +48,7 @@ router.post('/', async (req, res, next) => {
     const result = await provider.generate({
       user_image: `data:${mime};base64,${imageBase64}`,
       product_image_url: product.image_url,
-      product_metadata: { category: product.category },
+      product_metadata: product,
     });
 
     // Always 200: the client falls back to the browser-side style preview.

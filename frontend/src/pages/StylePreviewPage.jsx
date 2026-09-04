@@ -15,7 +15,7 @@ const LOADING_MESSAGES = [
   'Checking color compatibility...',
   'Fitting the outfit onto your photo...',
   'Building personalized styling suggestions...',
-  'Still working — waiting for a free AI slot...',
+  'Rendering the try-on — this can take up to a minute...',
 ]
 
 export default function StylePreviewModal({ product, onClose, onCartUpdated }) {

@@ -2,7 +2,7 @@
  * Virtual try-on / image-generation adapter.
  *
  * Contract:
- *   generate({ user_image, product_image, product_metadata })
+ *   generate({ user_image, product_image_url, product_metadata })
  *     → { generated_tryon_image, confidence, processing_status, provider }
  *
  * processing_status: completed | unavailable | failed
@@ -11,7 +11,7 @@
  * Add a new class and register it in createVirtualTryOnProvider() to swap vendors.
  */
 
-const { runTryOn } = require('./falTryOn');
+const { runTryOn, activeEngine } = require('./tryOnEngines');
 
 class UnavailableVirtualTryOnProvider {
   constructor() {
@@ -28,7 +28,7 @@ class UnavailableVirtualTryOnProvider {
       confidence: null,
       processing_status: 'unavailable',
       provider: this.name,
-      reason: 'not_configured',
+      reason: 'disabled',
     };
   }
 }
@@ -104,36 +104,29 @@ class HttpVirtualTryOnProvider {
 }
 
 /**
- * Photoreal try-on through fal.ai (FASHN v1.6 by default). Takes the shopper
- * photo plus the catalog garment shot and returns the shopper wearing it.
+ * Photoreal try-on through the shared engines: fal.ai when FAL_KEY is set,
+ * otherwise the free Hugging Face Space, which needs no account.
  */
-class FalVirtualTryOnProvider {
-  constructor({ apiKey, model, timeoutMs = 55000 } = {}) {
-    this.name = 'fal';
-    this.apiKey = apiKey;
-    this.model = model || 'fal-ai/fashn/tryon/v1.6';
+class EngineVirtualTryOnProvider {
+  constructor({ timeoutMs = 110000 } = {}) {
+    this.name = activeEngine();
     this.timeoutMs = timeoutMs;
   }
 
   isEnabled() {
-    return Boolean(this.apiKey);
+    return this.name !== 'none';
   }
 
   async generate({ user_image, product_image_url, product_metadata }) {
-    if (!this.isEnabled()) {
-      return new UnavailableVirtualTryOnProvider().generate();
-    }
-
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
       const result = await runTryOn({
-        apiKey: this.apiKey,
-        model: this.model,
         personDataUrl: user_image,
         garmentUrl: product_image_url,
         category: product_metadata?.category,
+        product: product_metadata,
         signal: controller.signal,
       });
 
@@ -141,7 +134,7 @@ class FalVirtualTryOnProvider {
         generated_tryon_image: result.image_url,
         confidence: null,
         processing_status: result.processing_status,
-        provider: this.name,
+        provider: result.provider || this.name,
         reason: result.reason,
         detail: result.detail,
       };
@@ -153,31 +146,22 @@ class FalVirtualTryOnProvider {
 
 function createVirtualTryOnProvider() {
   const configured = (process.env.VTON_PROVIDER || '').toLowerCase();
-  const falKey = process.env.FAL_KEY;
 
-  // An unset VTON_PROVIDER turns try-on on as soon as a FAL_KEY exists.
-  const driver = configured || (falKey ? 'fal' : 'none');
+  if (configured === 'none') return new UnavailableVirtualTryOnProvider();
 
-  if (driver === 'fal' && falKey) {
-    return new FalVirtualTryOnProvider({
-      apiKey: falKey,
-      model: process.env.VTON_MODEL,
-    });
-  }
-
-  if (driver === 'http' && process.env.VTON_API_URL) {
+  if (configured === 'http' && process.env.VTON_API_URL) {
     return new HttpVirtualTryOnProvider({
       endpoint: process.env.VTON_API_URL,
       apiKey: process.env.VTON_API_KEY,
     });
   }
 
-  return new UnavailableVirtualTryOnProvider();
+  return new EngineVirtualTryOnProvider();
 }
 
 module.exports = {
   UnavailableVirtualTryOnProvider,
   HttpVirtualTryOnProvider,
-  FalVirtualTryOnProvider,
+  EngineVirtualTryOnProvider,
   createVirtualTryOnProvider,
 };
