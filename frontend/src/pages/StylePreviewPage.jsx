@@ -179,6 +179,7 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
                 analysis={analysisResult}
                 reconsider={reconsider}
                 tryOn={tryOn}
+                userPhotoSrc={photo?.preview}
                 experienceLabel={experienceLabel}
                 onTryAnother={onClose}
                 onCartUpdated={onCartUpdated}

@@ -2,12 +2,13 @@ import React, { useState } from 'react'
 import { Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { addToCart, fetchCart, trackEvent } from '../api/client.js'
+import StyleLookPreview from './StyleLookPreview.jsx'
 
 function joinList(items) {
   return items.filter(Boolean).join('  •  ')
 }
 
-export default function StyleResultsPanel({ product, analysis, tryOn, onTryAnother, onCartUpdated }) {
+export default function StyleResultsPanel({ product, analysis, tryOn, userPhotoSrc, onTryAnother, onCartUpdated }) {
   const [addingToBag, setAddingToBag] = useState(false)
 
   const why = (analysis.why_it_works || []).slice(0, 3)
@@ -42,19 +43,30 @@ export default function StyleResultsPanel({ product, analysis, tryOn, onTryAnoth
     onTryAnother()
   }
 
+  const lookSrc = tryOn?.generated_tryon_image || null
+
   return (
     <div className="page-enter px-1 pt-2 pb-4 text-center">
-      {tryOn?.generated_tryon_image && (
-        <img
-          src={tryOn.generated_tryon_image}
-          alt="Generated virtual try-on preview"
-          className="mb-5 w-full max-h-56 object-contain bg-[#f4f4f5]"
-        />
-      )}
-
       <h2 className="text-[13px] font-bold tracking-[0.2em] uppercase text-gray-900">
         Your AI Style Result
       </h2>
+
+      <div className="mt-4">
+        {lookSrc ? (
+          <img
+            src={lookSrc}
+            alt={`${product.product_name} on your photo`}
+            className="w-full max-h-80 object-contain bg-[#f4f4f5]"
+          />
+        ) : (
+          <StyleLookPreview
+            userSrc={userPhotoSrc}
+            productSrc={product.image_url}
+            productName={product.product_name}
+            category={product.category}
+          />
+        )}
+      </div>
 
       <p className="mt-6 text-[42px] font-light tracking-tight text-gray-900 leading-none">
         {analysis.overall_score} <span className="text-[22px] text-gray-400">/ 100</span>
