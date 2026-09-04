@@ -122,6 +122,25 @@ function extractGarmentPalette(product) {
     }
   }
 
+  // The crop still contains studio background and the model's skin. Flatten
+  // those to the garment mean so the texture only carries fabric variation.
+  const texImage = cutCtx.getImageData(0, 0, 96, 96)
+  const tex = texImage.data
+  for (let i = 0; i < tex.length; i += 4) {
+    const r = tex[i]
+    const g = tex[i + 1]
+    const b = tex[i + 2]
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    const isBackdrop = (max > 226 && min > 205) || max < 20
+    if (isBackdrop || isSkinTone(r, g, b) || colorDist([r, g, b], mean) > 190) {
+      tex[i] = mean[0]
+      tex[i + 1] = mean[1]
+      tex[i + 2] = mean[2]
+    }
+  }
+  cutCtx.putImageData(texImage, 0, 0)
+
   return { mean, accent, texture: cut }
 }
 
@@ -331,13 +350,10 @@ function applyCostume(imageData, mask, palette) {
       const tr = tex[si]
       const tg = tex[si + 1]
       const tb = tex[si + 2]
-      const texLum = 0.299 * tr + 0.587 * tg + 0.114 * tb
-      const useTex = texLum > 20 && texLum < 245
-
-      const edge = m > 0.78 ? accent : mean
-      const gr = useTex ? tr * 0.55 + edge[0] * 0.45 : edge[0]
-      const gg = useTex ? tg * 0.55 + edge[1] * 0.45 : edge[1]
-      const gb = useTex ? tb * 0.55 + edge[2] * 0.45 : edge[2]
+      const edge = m > 0.78 ? mean : accent
+      const gr = tr * 0.4 + edge[0] * 0.6
+      const gg = tg * 0.4 + edge[1] * 0.6
+      const gb = tb * 0.4 + edge[2] * 0.6
       const gLum = Math.max(18, 0.299 * gr + 0.587 * gg + 0.114 * gb)
       const shade = clamp((userLum / gLum) * 0.92, 0.35, 1.45)
 
