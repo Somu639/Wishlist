@@ -13,7 +13,7 @@ const ACCEPTED_TYPES = { 'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'],
 const LOADING_MESSAGES = [
   'Analyzing your style...',
   'Checking color compatibility...',
-  'Generating your look overlay...',
+  'Changing the outfit on your photo...',
   'Building personalized styling suggestions...',
   'Still working — waiting for a free AI slot...',
 ]
@@ -108,15 +108,15 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
       trackEvent('photo_uploaded', { product_id: product.product_id, product_category: product.category })
       trackEvent('try_on_started', { product_id: product.product_id, product_category: product.category })
       const data = await analyzeStyle({ file: photo.file, productId: product.product_id })
-      const overlay = data.try_on?.generated_tryon_image || await overlayPromise
+      const look = await overlayPromise
       setAnalysisResult(data.analysis)
       setReconsider(data.reconsider || null)
       setTryOn({
         ...(data.try_on || {}),
-        generated_tryon_image: overlay,
-        processing_status: overlay ? 'completed' : (data.try_on?.processing_status || 'unavailable'),
+        generated_tryon_image: look,
+        processing_status: look ? 'completed' : 'unavailable',
       })
-      setLookImage(overlay)
+      setLookImage(look)
       setExperienceLabel(data.experience_label || 'AI Style Recommendation')
       trackEvent('ai_analysis_completed', {
         product_id: product.product_id,

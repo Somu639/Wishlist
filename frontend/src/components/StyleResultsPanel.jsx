@@ -3,6 +3,7 @@ import { Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { addToCart, fetchCart, trackEvent } from '../api/client.js'
 import StyleLookPreview from './StyleLookPreview.jsx'
+import { isGeneratedLook } from '../utils/composeLook.js'
 
 function joinList(items) {
   return items.filter(Boolean).join('  •  ')
@@ -43,7 +44,7 @@ export default function StyleResultsPanel({ product, analysis, tryOn, userPhotoS
     onTryAnother()
   }
 
-  const lookSrc = lookImage || tryOn?.generated_tryon_image || null
+  const lookSrc = [lookImage, tryOn?.generated_tryon_image].find(isGeneratedLook) || null
 
   return (
     <div className="page-enter px-1 pt-2 pb-4 text-center">

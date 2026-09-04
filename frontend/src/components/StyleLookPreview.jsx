@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { generateLookOverlay, overlayBox, productImageSrc } from '../utils/composeLook.js'
+import { generateLookOverlay, isGeneratedLook } from '../utils/composeLook.js'
 
 export default function StyleLookPreview({
   userSrc,
@@ -10,14 +10,13 @@ export default function StyleLookPreview({
   generatedSrc,
   onGenerated,
 }) {
-  const [composed, setComposed] = useState(generatedSrc || null)
-  const [busy, setBusy] = useState(!generatedSrc)
+  const [composed, setComposed] = useState(isGeneratedLook(generatedSrc) ? generatedSrc : null)
+  const [busy, setBusy] = useState(!isGeneratedLook(generatedSrc))
   const [userFailed, setUserFailed] = useState(false)
   const runId = useRef(0)
-  const box = overlayBox(category)
 
   useEffect(() => {
-    if (generatedSrc) {
+    if (isGeneratedLook(generatedSrc)) {
       setComposed(generatedSrc)
       setBusy(false)
       return undefined
@@ -27,6 +26,7 @@ export default function StyleLookPreview({
     const id = runId.current + 1
     runId.current = id
     setBusy(true)
+    setComposed(null)
 
     generateLookOverlay({
       userSrc,
@@ -58,31 +58,15 @@ export default function StyleLookPreview({
   return (
     <div className="w-full">
       <div className="relative w-full aspect-[3/4] max-h-80 mx-auto overflow-hidden bg-[#111]">
-        {composed ? (
-          <img src={composed} alt={`${productName} on your photo`} className="w-full h-full object-cover" />
-        ) : (
-          <>
-            <img
-              src={userSrc}
-              alt="Your uploaded photo"
-              className="absolute inset-0 w-full h-full object-cover"
-              onError={() => setUserFailed(true)}
-            />
-            <img
-              src={productImageSrc(productId, productSrc)}
-              alt={productName || 'Selected item'}
-              className="absolute left-1/2 -translate-x-1/2 object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.4)]"
-              style={{
-                top: `${box.top * 100}%`,
-                height: `${box.height * 100}%`,
-                width: `${box.width * 100}%`,
-              }}
-            />
-          </>
-        )}
-        {busy && !composed && (
+        <img
+          src={composed || userSrc}
+          alt={composed ? `${productName} styled on your photo` : 'Your uploaded photo'}
+          className="w-full h-full object-contain"
+          onError={() => setUserFailed(true)}
+        />
+        {busy && (
           <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
-            <p className="text-white text-[12px] font-semibold">Generating look overlay…</p>
+            <p className="text-white text-[12px] font-semibold">Changing the outfit on your photo…</p>
           </div>
         )}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 pt-8 pb-2.5 text-left">
@@ -90,7 +74,7 @@ export default function StyleLookPreview({
             {productName} on your photo
           </p>
           <p className="text-[10px] text-white/80">
-            Generated visual overlay — not a photoreal try-on or fit guarantee
+            Your photo with this item's colors — not a photoreal try-on or fit guarantee
           </p>
         </div>
       </div>
