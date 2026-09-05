@@ -51,9 +51,12 @@
   animation: fadeSlideUp 0.25s ease forwards;
 }
 
+/* Ends on `none` rather than `translateY(0)`: this animation fills forwards, and
+   any lingering transform would make the page wrapper the containing block for
+   the fixed-position modals rendered inside it. */
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 
 @keyframes dropPulse {

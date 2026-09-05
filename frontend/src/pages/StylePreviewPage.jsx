@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useDropzone } from 'react-dropzone'
 import { X, Camera, Sparkles, Lock, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -151,7 +152,9 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
     setError(null)
   }
 
-  return (
+  // Rendered on the body so no page-level transform can capture this overlay and
+  // resolve `fixed` against the scroll height instead of the viewport.
+  return createPortal(
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center">
       <button
         type="button"
@@ -285,6 +288,7 @@ export default function StylePreviewModal({ product, onClose, onCartUpdated }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
