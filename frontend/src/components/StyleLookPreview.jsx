@@ -15,11 +15,13 @@ export default function StyleLookPreview({
   const [composed, setComposed] = useState(generatedSrc || null)
   const [busy, setBusy] = useState(!generatedSrc)
   const [userFailed, setUserFailed] = useState(false)
+  const [composedFailed, setComposedFailed] = useState(false)
   const runId = useRef(0)
 
   useEffect(() => {
     if (generatedSrc) {
       setComposed(generatedSrc)
+      setComposedFailed(false)
       setBusy(false)
       return undefined
     }
@@ -57,16 +59,19 @@ export default function StyleLookPreview({
     )
   }
 
-  const isTryOn = lookKind === 'tryon' && Boolean(composed)
+  // Showing the shopper's bare photo as if it were a try-on would be worse than
+  // admitting the render is unavailable, so a broken look drops the try-on label.
+  const shownLook = composedFailed ? null : composed
+  const isTryOn = lookKind === 'tryon' && Boolean(shownLook)
 
   return (
     <div className="w-full">
       <div className="relative w-full aspect-[3/4] max-h-80 mx-auto overflow-hidden bg-[#111]">
         <img
-          src={composed || userSrc}
-          alt={composed ? `${productName} on your photo` : 'Your uploaded photo'}
+          src={shownLook || userSrc}
+          alt={shownLook ? `${productName} on your photo` : 'Your uploaded photo'}
           className="w-full h-full object-contain"
-          onError={() => setUserFailed(true)}
+          onError={() => (shownLook ? setComposedFailed(true) : setUserFailed(true))}
         />
         {busy && (
           <div className="absolute inset-0 bg-black/35 flex items-center justify-center">

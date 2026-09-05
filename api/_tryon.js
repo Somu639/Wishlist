@@ -128,6 +128,36 @@ async function hfUpload(space, blob, filename, signal) {
 
 const gradioFile = (path) => ({ path, meta: { _type: 'gradio.FileData' } });
 
+/**
+ * The Space writes results to the GPU worker's own /tmp, but `/file=` requests
+ * are load-balanced across replicas, so the URL 404s whenever it lands on a
+ * replica that never saw the file. Retrying reaches a different replica, and
+ * inlining the bytes means the browser never has to hit that lottery at all.
+ */
+async function inlineGradioImage(url, signal, attempts = 5) {
+  const forms = [url, url.replace('/file=', '/file/')];
+  let lastError = 'not found';
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const res = await fetch(forms[attempt % forms.length], { signal, headers: hfHeaders() });
+      const type = (res.headers.get('content-type') || '').split(';')[0];
+      if (res.ok && type.startsWith('image/')) {
+        const bytes = Buffer.from(await res.arrayBuffer());
+        return `data:${type};base64,${bytes.toString('base64')}`;
+      }
+      lastError = `HTTP ${res.status}`;
+    } catch (err) {
+      if (err.name === 'AbortError') throw err;
+      lastError = err.message;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+  }
+
+  console.error('[TryOn] could not download the Space result:', lastError);
+  return null;
+}
+
 /** Reads the Gradio SSE stream and resolves with the completed payload. */
 async function hfAwaitResult(space, eventId, signal) {
   const res = await fetch(`${space}/call/tryon/${eventId}`, { signal, headers: hfHeaders() });
@@ -213,7 +243,10 @@ async function runHuggingFaceTryOn({ personDataUrl, garmentUrl, product, signal 
     const eventId = JSON.parse(callText).event_id;
     const imageUrl = await hfAwaitResult(space, eventId, signal);
     if (!imageUrl) return failed('no_image', null, 'huggingface');
-    return ok(imageUrl, 'huggingface');
+
+    const inlined = await inlineGradioImage(imageUrl, signal);
+    if (!inlined) return failed('image_expired', 'the free Space dropped the result image', 'huggingface');
+    return ok(inlined, 'huggingface');
   } catch (err) {
     if (err.name === 'AbortError') {
       return failed('timeout', 'the free GPU queue took too long', 'huggingface');
@@ -254,7 +287,10 @@ async function runTryOn({ personDataUrl, garmentUrl, product, category, signal }
     if (['needs_credits', 'auth_failed', 'rate_limited'].includes(result.reason)) {
       console.warn(`[TryOn] fal unusable (${result.reason}); falling back to the free Space.`);
       const free = await runHuggingFaceTryOn({ personDataUrl, garmentUrl, product, signal });
-      return free.processing_status === 'completed' ? free : result;
+      if (free.processing_status === 'completed') return free;
+      // The free engine is the one that was actually expected to work, so its
+      // failure is the useful message; the paid account's state is a footnote.
+      return { ...free, detail: free.detail || `the paid engine is also unusable (${result.reason})` };
     }
     return result;
   }

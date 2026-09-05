@@ -12,3 +12,6 @@ dist/
 uploads/
 backend/data/
 screens/extracted/
+
+.vercel
+.env*

@@ -157,6 +157,7 @@ const TRY_ON_NOTICES = {
   rate_limited: 'The free try-on GPU is busy right now. Tap Try again in a moment.',
   timeout: 'The free try-on GPU queue took too long. Tap Try again.',
   no_image: 'Try-on could not produce an image from this photo.',
+  image_expired: 'The free try-on GPU dropped the finished image. Tap Try again.',
   missing_images: 'Try-on needs both your photo and the product image.',
   blocked: 'Vercel deployment protection is blocking the try-on endpoint.',
   endpoint_missing: 'The try-on endpoint is not deployed yet.',

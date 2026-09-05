@@ -125,7 +125,9 @@ Two engines are selected automatically:
 | Hugging Face [IDM-VTON](https://huggingface.co/spaces/yisol/IDM-VTON) Space | Default. No key required. | Free | ~20–40s, shared GPU queue |
 | [fal.ai](https://fal.ai) FASHN v1.6 | When `FAL_KEY` is set | ~$0.075 / image | ~5–15s |
 
-If a `FAL_KEY` is present but unusable — rejected, rate limited, or an account out of credit — the request falls back to the free Space rather than failing, so a lapsed billing account never breaks the demo.
+If a `FAL_KEY` is present but unusable — rejected, rate limited, or an account out of credit — the request falls back to the free Space rather than failing, so a lapsed billing account never breaks the demo. Set `VTON_PROVIDER=huggingface` to skip the paid attempt entirely.
+
+The endpoint returns the finished try-on inline as a `data:` URL rather than a link. A Gradio Space writes its result to one replica's local disk while serving `/file=` requests from any replica, so those links 404 unpredictably; downloading the bytes server-side keeps a completed render from arriving as a broken image.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
