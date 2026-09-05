@@ -202,12 +202,49 @@ function withTimeout(promise, ms) {
   ])
 }
 
-async function segmentSelfie(canvas) {
+async function runSegmenter(canvas) {
   const segmenter = await getImageSegmenter()
   const result = segmenter.segment(canvas)
   const bytes = result.categoryMask.getAsUint8Array()
   result.categoryMask.close?.()
   return bytes
+}
+
+// The single ImageSegmenter is not reentrant, and the try-on crop now runs
+// alongside the style preview, so overlapping callers take turns.
+let segmentQueue = Promise.resolve()
+
+export function segmentSelfie(canvas) {
+  const run = segmentQueue.then(() => runSegmenter(canvas), () => runSegmenter(canvas))
+  segmentQueue = run.then(() => {}, () => {})
+  return run
+}
+
+/** Bounding box of the shopper — hair, skin and clothing — in mask pixels. */
+export function personBounds(labels, width, height) {
+  let x0 = width
+  let y0 = height
+  let x1 = -1
+  let y1 = -1
+  let count = 0
+
+  for (let y = 0; y < height; y += 1) {
+    const row = y * width
+    for (let x = 0; x < width; x += 1) {
+      const label = labels[row + x]
+      if (label !== CAT_HAIR && label !== CAT_BODY_SKIN && label !== CAT_FACE_SKIN && label !== CAT_CLOTHES) {
+        continue
+      }
+      count += 1
+      if (x < x0) x0 = x
+      if (x > x1) x1 = x
+      if (y < y0) y0 = y
+      if (y > y1) y1 = y
+    }
+  }
+
+  if (x1 < x0 || y1 < y0) return null
+  return { x: x0, y: y0, width: x1 - x0 + 1, height: y1 - y0 + 1, coverage: count / (width * height) }
 }
 
 function clothesMaskFromLabels(labels, imageData, category) {

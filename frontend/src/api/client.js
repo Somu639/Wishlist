@@ -1,6 +1,6 @@
 import axios from 'axios'
 import * as local from '../data/localStore.js'
-import { fileToResizedBase64 } from '../utils/image.js'
+import { fileToResizedBase64, fileToTryOnBase64 } from '../utils/image.js'
 
 const explicitApi = import.meta.env.VITE_API_URL
 const remoteBase = /^https?:\/\//.test(explicitApi || '')
@@ -119,7 +119,7 @@ export async function analyzeStyle({ file, productId }) {
  */
 export async function generateTryOn({ file, productId }) {
   try {
-    const imageBase64 = await fileToResizedBase64(file)
+    const imageBase64 = await fileToTryOnBase64(file)
     const response = await functions.post(
       '/api/tryon',
       { product_id: productId, image_base64: imageBase64, image_mime: 'image/jpeg' },
